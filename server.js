@@ -1,19 +1,11 @@
-// COMPLETE STREMIO CUSTOM SERVER - JUST COPY & PASTE THIS!
-// COMPLETE STREMIO CUSTOM SERVER - JUST COPY & PASTE THIS!
+// COMPLETE STREMIO CUSTOM SERVER
 const express = require('express');
 const cors = require('cors');
-const { execSync } = require('child_process');
 
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Auto-install dependencies on first run (⚠️ slows startup, not ideal for production)
-try {
-  execSync('npm install express cors stremio-addon-sdk', { stdio: 'inherit' });
-} catch (e) {
-  console.error('Dependency install failed:', e);
-}
-
+// Enable CORS for Stremio
 app.use(cors());
 
 // STREMIO WEB PLAYER WITH EXTERNAL PLAYER BUTTON
@@ -98,19 +90,25 @@ app.get('/', (req, res) => {
 
 // ADDON MANIFEST (for custom addons)
 app.get('/manifest.json', (req, res) => {
+  res.setHeader('Content-Type', 'application/json');
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.json({
     id: 'custom.stremio',
     version: '1.0.0',
     name: 'Custom Stremio with External Players',
     description: 'A custom Stremio server with external player support',
+    resources: ['stream'],
     types: ['movie', 'series'],
-    catalogs: [],
-    resources: ['stream']
+    catalogs: []
   });
 });
 
+// HEALTHCHECK (optional, for Render sanity)
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok' });
+});
+
 // START SERVER
-// Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`
     🎉 STREMIO CUSTOM IS RUNNING!
