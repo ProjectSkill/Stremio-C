@@ -1,15 +1,18 @@
 {
   "name": "stremio-glass",
   "version": "1.0.0",
-  "description": "Stremio web proxy with community addons and glass theme",
+  "description": "Stremio with Glass Theme and iOS Players",
   "main": "server.js",
   "scripts": {
-    "start": "node /app/server.js"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5",
-    "axios": "^1.4.0",
+    "axios": "^1.6.0",
     "http-proxy-middleware": "^2.0.6"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
