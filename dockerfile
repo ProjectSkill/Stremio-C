@@ -4,7 +4,7 @@ WORKDIR /usr/src/app
 
 # Copy package and install first for cache friendliness
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev --no-audit --no-fund
 
 # Copy app
 COPY . .
