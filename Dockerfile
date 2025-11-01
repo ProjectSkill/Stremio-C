@@ -12,7 +12,7 @@ RUN git clone --depth 1 https://github.com/Stremio/stremio-web.git /app/stremio-
  && npm run build
 
 # Clone and build your fork of the community addon
-RUN git clone --depth 1 https://github.com/<your-username>/<your-fork>.git /app/addon \
+RUN git clone --depth 1 https://github.com/ProjectSkill/stremio-community-v5 /app/addon \
  && cd /app/addon \
  && npm ci --only=production \
  && npm run build
