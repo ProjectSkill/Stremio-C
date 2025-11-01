@@ -1,26 +1,24 @@
 FROM node:18-alpine
 WORKDIR /app
 
-# Copy package.json and package-lock.json (if available)
+# Copy package.json (and package-lock.json if you ever add it)
 COPY package*.json ./
 
-# Install only production dependencies
+# Install only production deps (works if you don't have a lockfile)
 RUN apk add --no-cache python3 make g++ \
- && npm ci --only=production --no-audit --no-fund
+ && npm install --production --no-audit --no-fund
 
-# Copy the rest of your app
+# Copy app files
 COPY . .
 
-# Ensure public directory exists
+# Ensure public exists
 RUN mkdir -p public
 
-# Healthcheck using dynamic port
+# Dynamic healthcheck against the PORT the app uses
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "require('http').get(`http://localhost:${process.env.PORT || 8080}/health`, r => process.exit(r.statusCode === 200 ? 0 : 1))"
+  CMD node -e "require('http').get(`http://localhost:${process.env.PORT || 8080}/health`, r => process.exit(r.statusCode===200?0:1))"
 
-# Set environment and expose port
 ENV NODE_ENV=production
 EXPOSE 8080
 
-# Start your server directly
 CMD ["node", "/app/server.js"]
