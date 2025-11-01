@@ -1,6 +1,3 @@
-FROM node:20-slim
-
-WORKDIR /app
 
 RUN apt-get update && apt-get install -y git wget curl && rm -rf /var/lib/apt/lists/*
 
@@ -71,9 +68,3 @@ process.exit(0);
 EOF
 
 RUN npm init -y && npm install express http-proxy-middleware
-
-ENV NODE_ENV=production
-
-EXPOSE 10000
-
-CMD [“node”, “/app/server.js”]
