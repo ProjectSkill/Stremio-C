@@ -5,5 +5,5 @@ services:
     dockerfilePath: ./Dockerfile
     envVars:
       - key: PORT
-        value: 8000  # Or whatever port your app uses
+        value: 8080  # Or whatever port your app uses
     healthCheckPath: /manifest.json
