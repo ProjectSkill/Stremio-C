@@ -8,4 +8,4 @@ services:
         value: production
     healthCheckPath: /health
     domains:
-      - stremio-community.onrender.com
+      - https://stremio-c.onrender.com
