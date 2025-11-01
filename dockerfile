@@ -2,13 +2,48 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Copy files
-COPY package*.json ./
-RUN npm ci --only=production
+# Create package.json inline
+RUN echo '{"name":"stremio-addon","version":"1.0.0","dependencies":{"express":"^4.18.0","cors":"^2.8.5"}}' > package.json
 
-COPY . .
+# Install dependencies
+RUN npm install
 
-# IMPORTANT: Don't use npm start if it outputs anything
-# Use node directly to avoid npm's output
-EXPOSE 8080
-CMD ["node", "server.js"]  # NOT "npm", "start"
+# Create complete server inline
+RUN cat > server.js << 'EOF'
+const express = require('express');
+const cors = require('cors');
+const app = express();
+
+app.use(cors());
+
+app.get('/manifest.json', (req, res) => {
+    res.json({
+        id: 'com.stremio.imvdb',
+        version: '1.0.0',
+        name: 'IMVDb Music Videos',
+        description: 'Stream music videos from IMVDb',
+        types: ['movie'],
+        catalogs: [{
+            type: 'movie',
+            id: 'imvdb-videos',
+            name: 'Music Videos'
+        }],
+        resources: ['stream'],
+        idPrefixes: ['imvdb:']
+    });
+});
+
+app.get('/stream/:type/:id.json', (req, res) => {
+    res.json({ streams: [] });
+});
+
+app.get('/', (req, res) => {
+    res.send('Addon is running');
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT);
+EOF
+
+EXPOSE 3000
+CMD ["node", "server.js"]
