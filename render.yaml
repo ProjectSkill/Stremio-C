@@ -1,10 +1,7 @@
 services:
   - type: web
-    name: stremio-enhanced
-    runtime: node
-    buildCommand: npm install
-    startCommand: node server.js
+    name: stremio-c
+    env: docker
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /health
-    envVars:
-      - key: NODE_ENV
-        value: production
+    numInstances: 1
