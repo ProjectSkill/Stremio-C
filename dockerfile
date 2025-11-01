@@ -10,5 +10,5 @@ COPY . .
 
 # IMPORTANT: Don't use npm start if it outputs anything
 # Use node directly to avoid npm's output
-EXPOSE 8000
+EXPOSE 8080
 CMD ["node", "server.js"]  # NOT "npm", "start"
