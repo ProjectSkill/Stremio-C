@@ -1,19 +1,14 @@
 FROM node:18-alpine
 
-WORKDIR /usr/src/app
+WORKDIR /app
 
-# Copy package and install first for cache friendliness
+# Copy files
 COPY package*.json ./
-RUN npm ci --omit=dev --no-audit --no-fund
+RUN npm ci --only=production
 
-# Copy app
 COPY . .
 
-# Ensure environment PORT is used in app (server.js reads process.env.PORT)
-ENV NODE_ENV=production
-
-# Optional: tell the container which port we expect (informational)
-EXPOSE 8080
-
-# Start the app - the app must read process.env.PORT
-CMD ["node", "server.js"]
+# IMPORTANT: Don't use npm start if it outputs anything
+# Use node directly to avoid npm's output
+EXPOSE 3000
+CMD ["node", "server.js"]  # NOT "npm", "start"
