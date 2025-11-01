@@ -2,22 +2,33 @@ FROM node:20-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y git wget curl && rm -rf /var/lib/apt/lists/*
+# Install dependencies
+RUN apt-get update && apt-get install -y git wget curl python3 make g++ \
+ && rm -rf /var/lib/apt/lists/*
 
-RUN wget -O stremio-web.tar.gz https://github.com/Stremio/stremio-web/releases/download/v4.4.168/stremio-web-v4.4.168.tar.gz \
- && tar -xzf stremio-web.tar.gz \
- && rm stremio-web.tar.gz \
- && mv build /app/stremio-web
+# --- Option 1: Clone and build stremio-web (latest main branch) ---
+RUN git clone --depth 1 https://github.com/Stremio/stremio-web.git /app/stremio-web \
+ && cd /app/stremio-web \
+ && npm install --legacy-peer-deps \
+ && npm run build
 
+# --- Option 2: Pin to a specific release tag for stability ---
+# RUN git clone --branch v4.4.168 https://github.com/Stremio/stremio-web.git /app/stremio-web \
+#  && cd /app/stremio-web \
+#  && npm install --legacy-peer-deps \
+#  && npm run build
+
+# Clone and build your fork of the community addon
 RUN git clone --depth 1 https://github.com/ProjectSkill/stremio-community-v5 /app/addon \
  && cd /app/addon \
  && npm install \
  && npm run build
 
-RUN wget -O /app/stremio-web/glass-theme.css https://raw.githubusercontent.com/Fxy6969/Stremio-Glass-Theme/cover/StremioGlass.css
+# Add Glass theme CSS
+RUN wget -O /app/stremio-web/build/glass-theme.css https://raw.githubusercontent.com/Fxy6969/Stremio-Glass-Theme/cover/StremioGlass.css \
+ && sed -i 's|</head>|<link rel="stylesheet" href="/glass-theme.css"><style>body{background:#0a0a0a;}</style></head>|g' /app/stremio-web/build/index.html
 
-RUN find /app/stremio-web -name "index.html" -exec sed -i 's|</head>|<link rel="stylesheet" href="/glass-theme.css"><style>body{background:#0a0a0a;}</style></head>|g' {} \;
-
+# Generate proxy server.js
 RUN cat > /app/server.js << 'EOF'
 const express = require("express");
 const path = require("path");
@@ -59,10 +70,10 @@ app.use("/addon", createProxyMiddleware({
   logLevel: "silent"
 }));
 
-app.use(express.static(path.join(__dirname, "stremio-web")));
+app.use(express.static(path.join(__dirname, "stremio-web/build")));
 
 app.get("*", (req, res) => {
-  res.sendFile(path.join(__dirname, "stremio-web", "index.html"));
+  res.sendFile(path.join(__dirname, "stremio-web/build", "index.html"));
 });
 
 app.listen(PORT, "0.0.0.0", () => {
@@ -76,10 +87,10 @@ process.on("SIGTERM", () => {
 });
 EOF
 
+# Install proxy dependencies
 RUN npm init -y && npm install express http-proxy-middleware
 
 ENV NODE_ENV=production
-
 EXPOSE 10000
 
 CMD ["node", "/app/server.js"]
