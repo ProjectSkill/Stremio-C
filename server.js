@@ -1,314 +1,140 @@
 const express = require('express');
-const cors = require('cors');
-const { createProxyMiddleware } = require('http-proxy-middleware');
-
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-app.use(cors({ origin: '*' }));
-app.use(express.static('public'));
-
-// Proxy Stremio with modifications
-const stremioProxy = createProxyMiddleware({
-    target: 'https://web.stremio.com',
-    changeOrigin: true,
-    ws: true,
-    onProxyRes: function(proxyRes, req, res) {
-        // Remove security headers that block modifications
-        delete proxyRes.headers['x-frame-options'];
-        delete proxyRes.headers['content-security-policy'];
-        
-        // For HTML responses, inject our minimal UI
-        if (proxyRes.headers['content-type'] && proxyRes.headers['content-type'].includes('text/html')) {
-            let body = [];
-            const originalWrite = res.write;
-            const originalEnd = res.end;
-            
-            res.write = function(chunk) {
-                body.push(chunk);
-            };
-            
-            res.end = function() {
-                const bodyString = Buffer.concat(body).toString();
-                const modifiedHtml = bodyString.replace(
-                    '</body>',
-                    getInjectionScript() + '</body>'
-                );
-                
-                res.setHeader('content-length', Buffer.byteLength(modifiedHtml));
-                originalWrite.call(res, modifiedHtml);
-                originalEnd.call(res);
-            };
-        }
-    }
+// Health check for Render
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok' });
 });
 
-// Injection script - minimal, headless
-const getInjectionScript = () => `
-<style>
-    /* Minimal glass button - top left */
-    .stremio-tools {
-        position: fixed;
-        top: 10px;
-        left: 10px;
-        z-index: 999999;
-    }
-    
-    .tools-btn {
-        width: 40px;
-        height: 40px;
-        border-radius: 50%;
-        background: rgba(0, 0, 0, 0.5);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: white;
-        cursor: pointer;
-        font-size: 20px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        transition: all 0.2s;
-    }
-    
-    .tools-btn:hover {
-        background: rgba(139, 92, 246, 0.3);
-    }
-    
-    .tools-menu {
-        display: none;
-        position: absolute;
-        top: 50px;
-        left: 0;
-        background: rgba(0, 0, 0, 0.9);
-        border-radius: 8px;
-        padding: 8px;
-        min-width: 200px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-    
-    .tools-menu.show {
-        display: block;
-    }
-    
-    .menu-section {
-        padding: 4px 0;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        margin-bottom: 4px;
-    }
-    
-    .menu-section:last-child {
-        border: none;
-        margin: 0;
-    }
-    
-    .menu-title {
-        color: rgba(255, 255, 255, 0.5);
-        font-size: 10px;
-        text-transform: uppercase;
-        padding: 4px 8px;
-        font-weight: 600;
-    }
-    
-    .menu-item {
-        color: white;
-        padding: 8px 12px;
-        cursor: pointer;
-        font-size: 13px;
-        border-radius: 4px;
-        transition: background 0.2s;
-        display: block;
-        text-decoration: none;
-    }
-    
-    .menu-item:hover {
-        background: rgba(139, 92, 246, 0.2);
-    }
-    
-    .stream-input {
-        display: none;
-        padding: 8px;
-        background: rgba(0, 0, 0, 0.9);
-        border-radius: 8px;
-        position: absolute;
-        top: 50px;
-        left: 0;
-        width: 300px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-    
-    .stream-input input {
-        width: 100%;
-        padding: 8px;
-        background: rgba(255, 255, 255, 0.1);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: white;
-        border-radius: 4px;
-        font-size: 12px;
-    }
-    
-    .stream-input button {
-        margin-top: 8px;
-        padding: 6px 12px;
-        background: rgba(139, 92, 246, 0.5);
-        border: none;
-        color: white;
-        border-radius: 4px;
-        cursor: pointer;
-        font-size: 12px;
-    }
-    
-    @media (max-width: 768px) {
-        .tools-btn {
-            width: 36px;
-            height: 36px;
-            font-size: 18px;
+// Main page
+app.get('/', (req, res) => {
+    res.send(`
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stremio Enhanced</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; }
+        iframe { width: 100vw; height: 100vh; border: none; }
+        
+        .tools {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            z-index: 9999;
         }
         
-        .tools-menu {
+        .tools-btn {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .menu {
+            display: none;
+            position: absolute;
+            top: 50px;
+            left: 0;
+            background: rgba(0, 0, 0, 0.95);
+            border-radius: 8px;
+            padding: 8px;
             min-width: 180px;
         }
         
-        .stream-input {
-            width: 250px;
+        .menu.show { display: block; }
+        
+        .menu a, .menu button {
+            display: block;
+            color: white;
+            padding: 10px;
+            text-decoration: none;
+            background: none;
+            border: none;
+            width: 100%;
+            text-align: left;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 14px;
         }
-    }
-</style>
-
-<div class="stremio-tools">
-    <button class="tools-btn" onclick="toggleToolsMenu()">⚡</button>
+        
+        .menu a:hover, .menu button:hover {
+            background: rgba(139, 92, 246, 0.3);
+        }
+        
+        .divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            margin: 4px 0;
+        }
+    </style>
+</head>
+<body>
+    <iframe id="stremio" src="https://web.stremio.com"></iframe>
     
-    <div class="tools-menu" id="toolsMenu">
-        <div class="menu-section">
-            <div class="menu-title">Quick Addons</div>
-            <a href="https://torrentio.strem.fun" target="_blank" class="menu-item">Torrentio</a>
-            <a href="https://stremio-jackett.gg.ax" target="_blank" class="menu-item">Jackett</a>
-            <a href="https://cyberflix.elfhosted.com" target="_blank" class="menu-item">Cyberflix</a>
-        </div>
-        
-        <div class="menu-section">
-            <div class="menu-title">Players</div>
-            <div class="menu-item" onclick="setPlayer('vlc')">🟠 VLC</div>
-            <div class="menu-item" onclick="setPlayer('outplayer')">📱 Outplayer</div>
-            <div class="menu-item" onclick="setPlayer('infuse')">🔥 Infuse</div>
-            <div class="menu-item" onclick="setPlayer('web')">🌐 Web (Default)</div>
-        </div>
-        
-        <div class="menu-section">
-            <div class="menu-item" onclick="toggleStreamInput()">🔗 Open Stream URL</div>
+    <div class="tools">
+        <button class="tools-btn" onclick="toggleMenu()">⚡</button>
+        <div class="menu" id="menu">
+            <a href="https://torrentio.strem.fun" target="_blank">Add Torrentio</a>
+            <a href="https://cyberflix.elfhosted.com" target="_blank">Add Cyberflix</a>
+            <div class="divider"></div>
+            <button onclick="setPlayer('vlc')">🟠 VLC Player</button>
+            <button onclick="setPlayer('infuse')">🔥 Infuse Player</button>
+            <button onclick="setPlayer('web')">🌐 Web Player</button>
         </div>
     </div>
     
-    <div class="stream-input" id="streamInput">
-        <input type="text" id="streamUrl" placeholder="Paste stream URL here...">
-        <button onclick="playStream()">Play in Selected Player</button>
-    </div>
-</div>
-
-<script>
-    // Simple, efficient script
-    let selectedPlayer = localStorage.getItem('selectedPlayer') || 'web';
-    let lastStreamUrl = '';
-    
-    function toggleToolsMenu() {
-        const menu = document.getElementById('toolsMenu');
-        const input = document.getElementById('streamInput');
-        menu.classList.toggle('show');
-        input.style.display = 'none';
-    }
-    
-    function toggleStreamInput() {
-        const input = document.getElementById('streamInput');
-        const menu = document.getElementById('toolsMenu');
-        input.style.display = input.style.display === 'block' ? 'none' : 'block';
-        menu.classList.remove('show');
-    }
-    
-    function setPlayer(player) {
-        selectedPlayer = player;
-        localStorage.setItem('selectedPlayer', player);
-        alert('Default player set to: ' + player.toUpperCase());
-        document.getElementById('toolsMenu').classList.remove('show');
-    }
-    
-    function playStream() {
-        const url = document.getElementById('streamUrl').value;
-        if (!url) {
-            alert('Please enter a stream URL');
-            return;
-        }
-        openInPlayer(url);
-    }
-    
-    function openInPlayer(url) {
-        const players = {
-            'vlc': 'vlc-x-callback://x-callback-url/stream?url=' + encodeURIComponent(url),
-            'outplayer': 'outplayer://play?url=' + encodeURIComponent(url),
-            'infuse': 'infuse://x-callback-url/play?url=' + encodeURIComponent(url),
-            'web': url
-        };
-        
-        const playerUrl = players[selectedPlayer];
-        
-        if (selectedPlayer === 'web') {
-            window.open(playerUrl, '_blank');
-        } else {
-            // For iOS apps
-            window.location.href = playerUrl;
-            
-            // Fallback if app not installed
-            setTimeout(function() {
-                if (confirm('App might not be installed. Open in web player instead?')) {
-                    window.open(url, '_blank');
-                }
-            }, 2500);
+    <script>
+        function toggleMenu() {
+            document.getElementById('menu').classList.toggle('show');
         }
         
-        document.getElementById('streamInput').style.display = 'none';
-    }
-    
-    // Intercept video playback (lightweight approach)
-    let checkCount = 0;
-    const videoChecker = setInterval(function() {
-        checkCount++;
-        if (checkCount > 100) clearInterval(videoChecker); // Stop after 100 checks
+        function setPlayer(p) {
+            localStorage.setItem('player', p);
+            alert('Default player: ' + p.toUpperCase());
+            toggleMenu();
+        }
         
-        const videos = document.querySelectorAll('video');
-        videos.forEach(function(video) {
-            if (video.src && video.src !== lastStreamUrl) {
-                lastStreamUrl = video.src;
-                
-                // Only prompt if not web player
-                if (selectedPlayer !== 'web' && video.src.includes('http')) {
-                    if (confirm('Open in ' + selectedPlayer.toUpperCase() + '?')) {
-                        openInPlayer(video.src);
-                        video.pause();
-                    }
-                }
+        // Close menu on outside click
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.tools')) {
+                document.getElementById('menu').classList.remove('show');
             }
         });
-    }, 1000);
-    
-    // Close menu on outside click
-    document.addEventListener('click', function(e) {
-        if (!e.target.closest('.stremio-tools')) {
-            document.getElementById('toolsMenu').classList.remove('show');
-            document.getElementById('streamInput').style.display = 'none';
-        }
-    });
-    
-    // Hide button on login page
-    setInterval(function() {
-        const isLoginPage = window.location.href.includes('login') || 
-                          document.querySelector('[class*="login"]') ||
-                          document.querySelector('[class*="Login"]');
         
-        document.querySelector('.stremio-tools').style.display = isLoginPage ? 'none' : 'block';
-    }, 2000);
-</script>
-`;
+        // Check for videos
+        setInterval(function() {
+            try {
+                const frame = document.getElementById('stremio').contentWindow;
+                const videos = frame.document.querySelectorAll('video');
+                videos.forEach(function(v) {
+                    if (v.src && !v.dataset.checked) {
+                        v.dataset.checked = 'true';
+                        const player = localStorage.getItem('player');
+                        if (player === 'vlc' && confirm('Open in VLC?')) {
+                            window.location = 'vlc-x-callback://x-callback-url/stream?url=' + encodeURIComponent(v.src);
+                        }
+                    }
+                });
+            } catch(e) {
+                // Cross-origin, ignore
+            }
+        }, 3000);
+    </script>
+</body>
+</html>
+    `);
+});
 
-// Use proxy for all routes
-app.use('/', stremioProxy);
-
-app.listen(PORT, () => {
-    console.log(`Headless Stremio running on port ${PORT}`);
+// Explicit server start
+app.listen(PORT, '0.0.0.0', () => {
+    console.log('Server is running on port ' + PORT);
 });
