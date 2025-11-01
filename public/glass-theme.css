@@ -1,0 +1,144 @@
+/* Glass Theme for Stremio Web */
+:root {
+    --primary-color: #7B3FF2;
+    --secondary-color: #FF6B6B;
+    --background-dark: rgba(10, 10, 20, 0.95);
+    --glass-bg: rgba(255, 255, 255, 0.05);
+    --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    backdrop-filter: blur(10px);
+}
+
+/* Glass effect for containers */
+.container, .card, .modal, div[class*="Container"] {
+    background: var(--glass-bg) !important;
+    backdrop-filter: blur(20px) !important;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 15px !important;
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37) !important;
+}
+
+/* Navigation bar glass effect */
+nav, header, div[class*="NavBar"], div[class*="Header"] {
+    background: rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(15px) !important;
+    border-bottom: 1px solid var(--glass-border) !important;
+}
+
+/* Buttons with glass effect */
+button, .button, a[class*="Button"], div[class*="Button"] {
+    background: linear-gradient(135deg, 
+        rgba(123, 63, 242, 0.4), 
+        rgba(123, 63, 242, 0.2)) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(123, 63, 242, 0.3) !important;
+    border-radius: 8px !important;
+    transition: all 0.3s ease !important;
+}
+
+button:hover, .button:hover {
+    background: linear-gradient(135deg, 
+        rgba(123, 63, 242, 0.6), 
+        rgba(123, 63, 242, 0.4)) !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 10px 20px rgba(123, 63, 242, 0.3) !important;
+}
+
+/* Input fields glass effect */
+input, textarea, select {
+    background: rgba(255, 255, 255, 0.1) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    border-radius: 8px !important;
+    color: white !important;
+    padding: 10px 15px !important;
+}
+
+input::placeholder, textarea::placeholder {
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/* Movie/Series cards glass effect */
+div[class*="MetaItem"], div[class*="Card"], div[class*="Poster"] {
+    background: rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(10px) !important;
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    transition: all 0.3s ease !important;
+}
+
+div[class*="MetaItem"]:hover, div[class*="Card"]:hover {
+    transform: scale(1.05) !important;
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.1);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #764ba2, #667eea);
+}
+
+/* Text styling */
+h1, h2, h3, h4, h5, h6 {
+    color: white !important;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+}
+
+p, span, div {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+/* Loading animation */
+@keyframes pulse-glow {
+    0% {
+        box-shadow: 0 0 5px rgba(123, 63, 242, 0.5);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(123, 63, 242, 0.8);
+    }
+    100% {
+        box-shadow: 0 0 5px rgba(123, 63, 242, 0.5);
+    }
+}
+
+.loading, div[class*="Loading"] {
+    animation: pulse-glow 2s infinite !important;
+}
+
+/* Player controls glass effect */
+div[class*="Player"], div[class*="Controls"] {
+    background: rgba(0, 0, 0, 0.5) !important;
+    backdrop-filter: blur(20px) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .container, .card {
+        border-radius: 10px !important;
+    }
+    
+    button, .button {
+        padding: 8px 16px !important;
+    }
+}
