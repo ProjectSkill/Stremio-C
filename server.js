@@ -31,68 +31,189 @@ const COMMUNITY_ADDONS = [
 const STREMIO_WEB_URL = 'https://web.stremio.com';
 const STREMIO_API_URL = 'https://api.strem.io';
 
-// Custom HTML with injected theme
-const getCustomHTML = () => `
+// Custom HTML with injected const getCustomHTML = () => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Stremio Web - Community Edition</title>
     <link rel="stylesheet" href="/glass-theme.css">
     <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
+        
         body {
             margin: 0;
             padding: 0;
             overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         }
+        
         #stremio-container {
             width: 100vw;
             height: 100vh;
             position: relative;
         }
+        
         iframe {
             width: 100%;
             height: 100%;
             border: none;
         }
+        
         .addon-manager {
             position: fixed;
             top: 10px;
             right: 10px;
             z-index: 9999;
-            background: rgba(0, 0, 0, 0.8);
-            padding: 10px;
-            border-radius: 5px;
+            /* Glass effect */
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 8px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
+        
         .addon-btn {
-            background: #7B3FF2;
+            background: rgba(123, 63, 242, 0.8);
             color: white;
             border: none;
-            padding: 10px 20px;
-            border-radius: 5px;
+            padding: 8px 16px;
+            border-radius: 8px;
             cursor: pointer;
-            margin: 5px;
+            font-size: 14px;
+            font-weight: 500;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
+        
         .addon-list {
             display: none;
-            background: rgba(0, 0, 0, 0.9);
-            padding: 10px;
-            border-radius: 5px;
-            margin-top: 10px;
-            max-height: 400px;
+            position: fixed;
+            top: 60px;
+            right: 10px;
+            width: 90vw;
+            max-width: 350px;
+            max-height: 70vh;
+            /* Glass effect */
+            background: rgba(20, 20, 30, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 12px;
+            border-radius: 12px;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
         }
+        
         .addon-item {
-            padding: 8px;
-            margin: 5px 0;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
+            padding: 12px;
+            margin: 8px 0;
+            /* Glass effect for items */
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(5px);
+            -webkit-backdrop-filter: blur(5px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
             cursor: pointer;
             color: white;
+            font-size: 14px;
+            transition: all 0.3s ease;
         }
-        .addon-item:hover {
+        
+        .addon-item:hover, .addon-item:active {
             background: rgba(123, 63, 242, 0.3);
+            transform: scale(0.98);
+        }
+        
+        .addon-item strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 15px;
+        }
+        
+        .addon-item small {
+            opacity: 0.8;
+            font-size: 12px;
+            line-height: 1.3;
+        }
+        
+        /* Mobile specific */
+        @media (max-width: 768px) {
+            .addon-manager {
+                top: 5px;
+                right: 5px;
+                padding: 6px;
+            }
+            
+            .addon-btn {
+                padding: 10px 14px;
+                font-size: 13px;
+            }
+            
+            .addon-list {
+                top: 50px;
+                right: 5px;
+                left: 5px;
+                width: auto;
+                max-width: none;
+                max-height: 60vh;
+                padding: 10px;
+            }
+            
+            .addon-item {
+                padding: 10px;
+                margin: 6px 0;
+                font-size: 13px;
+            }
+            
+            .addon-item strong {
+                font-size: 14px;
+            }
+            
+            .addon-item small {
+                font-size: 11px;
+            }
+        }
+        
+        /* Scrollbar styling for addon list */
+        .addon-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        
+        .addon-list::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+        
+        .addon-list::-webkit-scrollbar-thumb {
+            background: rgba(123, 63, 242, 0.5);
+            border-radius: 3px;
+        }
+        
+        /* Close button for addon list */
+        .close-addons {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: rgba(255, 255, 255, 0.2);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
         }
     </style>
 </head>
@@ -102,8 +223,11 @@ const getCustomHTML = () => `
     </div>
     
     <div class="addon-manager">
-        <button class="addon-btn" onclick="toggleAddons()">Community Addons</button>
-        <div id="addon-list" class="addon-list"></div>
+        <button class="addon-btn" onclick="toggleAddons()">+ Addons</button>
+        <div id="addon-list" class="addon-list">
+            <button class="close-addons" onclick="closeAddons()">×</button>
+            <div id="addon-content"></div>
+        </div>
     </div>
 
     <script>
@@ -112,16 +236,28 @@ const getCustomHTML = () => `
         function toggleAddons() {
             const list = document.getElementById('addon-list');
             if (list.style.display === 'block') {
-                list.style.display = 'none';
+                closeAddons();
             } else {
                 list.style.display = 'block';
                 loadAddons();
             }
         }
         
+        function closeAddons() {
+            document.getElementById('addon-list').style.display = 'none';
+        }
+        
+        // Close when clicking outside
+        document.addEventListener('click', function(event) {
+            const addonManager = document.querySelector('.addon-manager');
+            if (!addonManager.contains(event.target)) {
+                closeAddons();
+            }
+        });
+        
         async function loadAddons() {
-            const list = document.getElementById('addon-list');
-            list.innerHTML = '<div style="color: white;">Loading addons...</div>';
+            const content = document.getElementById('addon-content');
+            content.innerHTML = '<div style="color: white; text-align: center;">Loading addons...</div>';
             
             let html = '';
             for (const addon of communityAddons) {
@@ -130,56 +266,29 @@ const getCustomHTML = () => `
                     const data = await response.json();
                     html += \`
                         <div class="addon-item" onclick="installAddon('\${addon}')">
-                            <strong>\${data.name || 'Unknown Addon'}</strong><br>
-                            <small>\${data.description || addon}</small>
+                            <strong>\${data.name || 'Unknown Addon'}</strong>
+                            <small>\${data.description || addon.split('/')[2]}</small>
                         </div>
                     \`;
                 } catch (e) {
-                    html += \`<div class="addon-item" onclick="installAddon('\${addon}')">\${addon}</div>\`;
+                    const name = addon.split('/')[2];
+                    html += \`
+                        <div class="addon-item" onclick="installAddon('\${addon}')">
+                            <strong>\${name}</strong>
+                            <small>Click to install</small>
+                        </div>
+                    \`;
                 }
             }
-            list.innerHTML = html;
+            content.innerHTML = html;
         }
         
         function installAddon(addonUrl) {
-            // Send message to iframe to install addon
-            const frame = document.getElementById('stremio-frame');
-            frame.contentWindow.postMessage({
-                type: 'INSTALL_ADDON',
-                url: addonUrl
-            }, '*');
-            
-            // Alternative: Direct API call
-            fetch('/api/install-addon', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ addonUrl })
-            }).then(response => response.json())
-              .then(data => {
-                  alert(data.message || 'Addon installed!');
-              });
+            alert('Opening addon: ' + addonUrl.split('/')[2]);
+            // Try to open in Stremio
+            window.open(addonUrl, '_blank');
+            closeAddons();
         }
-        
-        // Listen for messages from iframe
-        window.addEventListener('message', (event) => {
-            console.log('Message from Stremio:', event.data);
-        });
-        
-        // Apply theme on load
-        window.addEventListener('load', () => {
-            setTimeout(() => {
-                const frame = document.getElementById('stremio-frame');
-                try {
-                    const frameDoc = frame.contentDocument || frame.contentWindow.document;
-                    const link = frameDoc.createElement('link');
-                    link.rel = 'stylesheet';
-                    link.href = '/glass-theme.css';
-                    frameDoc.head.appendChild(link);
-                } catch(e) {
-                    console.log('Could not inject theme directly due to CORS');
-                }
-            }, 2000);
-        });
     </script>
 </body>
 </html>
