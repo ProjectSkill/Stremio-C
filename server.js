@@ -1,14 +1,19 @@
-// COMPLETE STREMIO CUSTOM SERVER
+// --- Dependencies ---
+// Why: Express handles HTTP routing; CORS ensures Stremio can fetch resources across origins.
 const express = require('express');
 const cors = require('cors');
 
+// --- App and port ---
+// Why: Render injects PORT; fallback ensures local dev works. Binding to 0.0.0.0 makes it reachable in a container.
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Enable CORS for Stremio
+// --- Global middleware ---
+// Why: CORS is required for Stremio to accept your manifest and subsequent routes.
 app.use(cors());
 
-// STREMIO WEB PLAYER WITH EXTERNAL PLAYER BUTTON
+// --- UI: HTML for the root route ---
+// Why: This is your informational page; Stremio never uses it, but it helps humans verify the service.
 const STREMIO_WEB_HTML = `
 <!DOCTYPE html>
 <html>
@@ -30,6 +35,7 @@ const STREMIO_WEB_HTML = `
         }
         .player-btn:hover { background: #6B4BE2; }
         iframe { width: 100%; height: 600px; border: none; }
+        code { background:#1a1d29; padding:2px 4px; border-radius:3px; }
     </style>
 </head>
 <body>
@@ -71,16 +77,18 @@ const STREMIO_WEB_HTML = `
 </html>
 `;
 
-// MAIN ROUTE
+// --- Root route ---
+// Why: Serves the human-facing page. Not used by Stremio’s add‑on flow.
 app.get('/', (req, res) => {
     res.send(STREMIO_WEB_HTML);
 });
 
-// MANIFEST ROUTE
+// --- Manifest route (strict output) ---
+// Why: Stremio requires a pure JSON body with correct headers and zero leading whitespace or BOM.
+// We use res.end(JSON.stringify(...)) instead of res.json() to avoid any framework-added nuances.
+// We explicitly set Content-Type and CORS headers to satisfy Stremio’s fetch.
 app.get('/manifest.json', (req, res) => {
-  res.setHeader('Content-Type', 'application/json');
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.json({
+  const manifest = {
     id: 'custom.stremio',
     version: '1.0.0',
     name: 'Custom Stremio with External Players',
@@ -88,15 +96,22 @@ app.get('/manifest.json', (req, res) => {
     resources: ['stream'],
     types: ['movie', 'series'],
     catalogs: []
-  });
+  };
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.end(JSON.stringify(manifest)); // Ensures first byte is '{' and nothing else precedes it.
 });
 
-// HEALTHCHECK
+// --- Healthcheck route ---
+// Why: Lets Render (and you) verify the container is alive; pairs with Docker/Render health checks.
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok' });
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.end(JSON.stringify({ status: 'ok' }));
 });
 
-// START SERVER
+// --- Start server ---
+// Why: Bind to 0.0.0.0 for container reachability; logs confirm the effective port.
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🎉 STREMIO CUSTOM IS RUNNING on port ${PORT}`);
 });
