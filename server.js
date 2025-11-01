@@ -1,15 +1,18 @@
 // COMPLETE STREMIO CUSTOM SERVER - JUST COPY & PASTE THIS!
 const express = require('express');
+const cors = require('cors');
+const { execSync } = require('child_process');
+
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Auto-install dependencies on first run
-const { execSync } = require('child_process');
+// Auto-install dependencies on first run (⚠️ slows startup, not ideal for production)
 try {
   execSync('npm install express cors stremio-addon-sdk', { stdio: 'inherit' });
-} catch(e) {}
+} catch (e) {
+  console.error('Dependency install failed:', e);
+}
 
-const cors = require('cors');
 app.use(cors());
 
 // STREMIO WEB PLAYER WITH EXTERNAL PLAYER BUTTON
@@ -104,11 +107,12 @@ app.get('/manifest.json', (req, res) => {
 });
 
 // START SERVER
-app.listen(PORT, () => {
-    console.log(`
+// Start server
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`
     🎉 STREMIO CUSTOM IS RUNNING!
     📍 Local: http://localhost:${PORT}
     🔒 HTTPS is automatic on Render
     📺 External players ready!
-    `);
+  `);
 });
