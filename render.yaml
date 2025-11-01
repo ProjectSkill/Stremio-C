@@ -1,10 +1,9 @@
 services:
   - type: web
     name: stremio-c
-    env: docker
+    env: docker  # This tells Render to use your Dockerfile
     dockerfilePath: ./Dockerfile
     envVars:
       - key: PORT
-        value: 3000
+        value: 8000  # Or whatever port your app uses
     healthCheckPath: /manifest.json
-    numInstances: 1
