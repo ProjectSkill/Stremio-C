@@ -1,13 +1,15 @@
 {
-{
-  "name": "app",
+  "name": "stremio-glass",
   "version": "1.0.0",
+  "description": "Stremio web proxy with community addons and glass theme",
   "main": "server.js",
   "scripts": {
     "start": "node /app/server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "axios": "^1.4.0",
     "http-proxy-middleware": "^2.0.6"
   }
 }
