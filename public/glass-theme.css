@@ -1,144 +1,277 @@
-/* Glass Theme for Stremio Web */
+/* Stremio Glass Theme - Based on Fxy6969's design */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
 :root {
-    --primary-color: #7B3FF2;
-    --secondary-color: #FF6B6B;
-    --background-dark: rgba(10, 10, 20, 0.95);
-    --glass-bg: rgba(255, 255, 255, 0.05);
-    --glass-border: rgba(255, 255, 255, 0.1);
+    --primary: #8b5cf6;
+    --primary-hover: #7c3aed;
+    --background: #0f0f14;
+    --surface: rgba(255, 255, 255, 0.05);
+    --surface-hover: rgba(255, 255, 255, 0.08);
+    --border: rgba(255, 255, 255, 0.1);
+    --text-primary: #ffffff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --blur: 40px;
+    --radius: 12px;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 * {
+    margin: 0;
+    padding: 0;
     box-sizing: border-box;
 }
 
 body {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    backdrop-filter: blur(10px);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: var(--background);
+    color: var(--text-primary);
+    overflow-x: hidden;
 }
 
-/* Glass effect for containers */
-.container, .card, .modal, div[class*="Container"] {
-    background: var(--glass-bg) !important;
+/* Glass morphism base */
+.glass {
+    background: var(--surface);
+    backdrop-filter: blur(var(--blur));
+    -webkit-backdrop-filter: blur(var(--blur));
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+}
+
+/* Navigation */
+.nav-bar, nav, header {
+    background: rgba(15, 15, 20, 0.8) !important;
+    backdrop-filter: blur(var(--blur)) !important;
+    -webkit-backdrop-filter: blur(var(--blur)) !important;
+    border-bottom: 1px solid var(--border) !important;
+    transition: var(--transition) !important;
+}
+
+/* Cards and containers */
+.card, .meta-item, .meta-row, .video-item {
+    background: var(--surface) !important;
     backdrop-filter: blur(20px) !important;
-    border: 1px solid var(--glass-border) !important;
-    border-radius: 15px !important;
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.37) !important;
-}
-
-/* Navigation bar glass effect */
-nav, header, div[class*="NavBar"], div[class*="Header"] {
-    background: rgba(0, 0, 0, 0.3) !important;
-    backdrop-filter: blur(15px) !important;
-    border-bottom: 1px solid var(--glass-border) !important;
-}
-
-/* Buttons with glass effect */
-button, .button, a[class*="Button"], div[class*="Button"] {
-    background: linear-gradient(135deg, 
-        rgba(123, 63, 242, 0.4), 
-        rgba(123, 63, 242, 0.2)) !important;
-    backdrop-filter: blur(10px) !important;
-    border: 1px solid rgba(123, 63, 242, 0.3) !important;
-    border-radius: 8px !important;
-    transition: all 0.3s ease !important;
-}
-
-button:hover, .button:hover {
-    background: linear-gradient(135deg, 
-        rgba(123, 63, 242, 0.6), 
-        rgba(123, 63, 242, 0.4)) !important;
-    transform: translateY(-2px) !important;
-    box-shadow: 0 10px 20px rgba(123, 63, 242, 0.3) !important;
-}
-
-/* Input fields glass effect */
-input, textarea, select {
-    background: rgba(255, 255, 255, 0.1) !important;
-    backdrop-filter: blur(10px) !important;
-    border: 1px solid rgba(255, 255, 255, 0.2) !important;
-    border-radius: 8px !important;
-    color: white !important;
-    padding: 10px 15px !important;
-}
-
-input::placeholder, textarea::placeholder {
-    color: rgba(255, 255, 255, 0.6) !important;
-}
-
-/* Movie/Series cards glass effect */
-div[class*="MetaItem"], div[class*="Card"], div[class*="Poster"] {
-    background: rgba(0, 0, 0, 0.3) !important;
-    backdrop-filter: blur(10px) !important;
-    border-radius: 10px !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    transition: var(--transition) !important;
     overflow: hidden !important;
-    transition: all 0.3s ease !important;
 }
 
-div[class*="MetaItem"]:hover, div[class*="Card"]:hover {
-    transform: scale(1.05) !important;
-    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.4) !important;
+.card:hover, .meta-item:hover, .video-item:hover {
+    background: var(--surface-hover) !important;
+    transform: translateY(-4px) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3) !important;
 }
 
-/* Scrollbar styling */
+/* Buttons */
+button, .button, .btn, a[role="button"] {
+    background: linear-gradient(135deg, var(--primary), var(--primary-hover)) !important;
+    color: white !important;
+    border: none !important;
+    border-radius: 24px !important;
+    padding: 10px 24px !important;
+    font-weight: 600 !important;
+    font-size: 14px !important;
+    cursor: pointer !important;
+    transition: var(--transition) !important;
+    position: relative !important;
+    overflow: hidden !important;
+}
+
+button:hover, .button:hover, .btn:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 10px 30px rgba(139, 92, 246, 0.4) !important;
+}
+
+button:active, .button:active {
+    transform: translateY(0) !important;
+}
+
+/* Input fields */
+input, textarea, select {
+    background: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    padding: 12px 16px !important;
+    color: var(--text-primary) !important;
+    font-size: 14px !important;
+    transition: var(--transition) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+}
+
+input:focus, textarea:focus, select:focus {
+    outline: none !important;
+    border-color: var(--primary) !important;
+    background: rgba(139, 92, 246, 0.1) !important;
+}
+
+/* Scrollbar */
 ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: 8px;
+    height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-    background: rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.02);
     border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: linear-gradient(135deg, #667eea, #764ba2);
+    background: linear-gradient(to bottom, var(--primary), var(--primary-hover));
     border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: linear-gradient(135deg, #764ba2, #667eea);
+    background: var(--primary-hover);
 }
 
-/* Text styling */
-h1, h2, h3, h4, h5, h6 {
-    color: white !important;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+/* Media items */
+.poster, .cover, .thumbnail {
+    border-radius: 10px !important;
+    overflow: hidden !important;
+    position: relative !important;
 }
 
-p, span, div {
-    color: rgba(255, 255, 255, 0.9) !important;
+.poster::after, .cover::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(to bottom, transparent 60%, rgba(0, 0, 0, 0.7));
+    opacity: 0;
+    transition: var(--transition);
 }
 
-/* Loading animation */
-@keyframes pulse-glow {
-    0% {
-        box-shadow: 0 0 5px rgba(123, 63, 242, 0.5);
-    }
-    50% {
-        box-shadow: 0 0 20px rgba(123, 63, 242, 0.8);
-    }
-    100% {
-        box-shadow: 0 0 5px rgba(123, 63, 242, 0.5);
-    }
+.poster:hover::after, .cover:hover::after {
+    opacity: 1;
 }
 
-.loading, div[class*="Loading"] {
-    animation: pulse-glow 2s infinite !important;
+/* Player controls */
+.player-controls, .control-bar {
+    background: rgba(0, 0, 0, 0.7) !important;
+    backdrop-filter: blur(var(--blur)) !important;
+    -webkit-backdrop-filter: blur(var(--blur)) !important;
+    border-top: 1px solid var(--border) !important;
 }
 
-/* Player controls glass effect */
-div[class*="Player"], div[class*="Controls"] {
-    background: rgba(0, 0, 0, 0.5) !important;
+/* Tooltips */
+.tooltip, [role="tooltip"] {
+    background: rgba(0, 0, 0, 0.9) !important;
     backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 8px !important;
+    padding: 8px 12px !important;
+    font-size: 12px !important;
 }
 
-/* Responsive adjustments */
+/* Modals */
+.modal, .dialog, [role="dialog"] {
+    background: rgba(15, 15, 20, 0.95) !important;
+    backdrop-filter: blur(var(--blur)) !important;
+    -webkit-backdrop-filter: blur(var(--blur)) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 20px !important;
+    box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Loading states */
+.loading, .spinner, .loader {
+    position: relative !important;
+}
+
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 40px;
+    height: 40px;
+    margin: -20px 0 0 -20px;
+    border: 3px solid var(--border);
+    border-radius: 50%;
+    border-top-color: var(--primary);
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* Animations */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Apply animations */
+.card, .meta-item {
+    animation: fadeIn 0.5s ease;
+}
+
+/* Mobile optimizations */
 @media (max-width: 768px) {
-    .container, .card {
-        border-radius: 10px !important;
+    :root {
+        --radius: 10px;
+        --blur: 20px;
     }
     
     button, .button {
-        padding: 8px 16px !important;
+        padding: 8px 20px !important;
+        font-size: 13px !important;
     }
+    
+    .card, .meta-item {
+        margin: 8px !important;
+    }
+}
+
+/* Dark overlay for modals */
+.overlay, .backdrop {
+    background: rgba(0, 0, 0, 0.8) !important;
+    backdrop-filter: blur(5px) !important;
+    -webkit-backdrop-filter: blur(5px) !important;
+}
+
+/* Success/Error states */
+.success {
+    background: linear-gradient(135deg, #10b981, #059669) !important;
+}
+
+.error {
+    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+}
+
+.warning {
+    background: linear-gradient(135deg, #f59e0b, #d97706) !important;
+}
+
+/* Stremio specific overrides */
+#stremio-frame {
+    background: transparent !important;
+}
+
+/* Apply to all Stremio elements */
+[class*="stremio"] {
+    transition: var(--transition) !important;
 }
