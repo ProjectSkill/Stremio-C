@@ -32,6 +32,7 @@ const STREMIO_WEB_URL = 'https://web.stremio.com';
 const STREMIO_API_URL = 'https://api.strem.io';
 
 // Custom HTML with injected const getCustomHTML = () => `
+const getCustomHTML = () => `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -68,7 +69,6 @@ const STREMIO_API_URL = 'https://api.strem.io';
             top: 10px;
             right: 10px;
             z-index: 9999;
-            /* Glass effect */
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             -webkit-backdrop-filter: blur(10px);
@@ -99,7 +99,6 @@ const STREMIO_API_URL = 'https://api.strem.io';
             width: 90vw;
             max-width: 350px;
             max-height: 70vh;
-            /* Glass effect */
             background: rgba(20, 20, 30, 0.85);
             backdrop-filter: blur(20px);
             -webkit-backdrop-filter: blur(20px);
@@ -114,7 +113,6 @@ const STREMIO_API_URL = 'https://api.strem.io';
         .addon-item {
             padding: 12px;
             margin: 8px 0;
-            /* Glass effect for items */
             background: rgba(255, 255, 255, 0.05);
             backdrop-filter: blur(5px);
             -webkit-backdrop-filter: blur(5px);
@@ -143,7 +141,6 @@ const STREMIO_API_URL = 'https://api.strem.io';
             line-height: 1.3;
         }
         
-        /* Mobile specific */
         @media (max-width: 768px) {
             .addon-manager {
                 top: 5px;
@@ -181,7 +178,6 @@ const STREMIO_API_URL = 'https://api.strem.io';
             }
         }
         
-        /* Scrollbar styling for addon list */
         .addon-list::-webkit-scrollbar {
             width: 6px;
         }
@@ -196,7 +192,6 @@ const STREMIO_API_URL = 'https://api.strem.io';
             border-radius: 3px;
         }
         
-        /* Close button for addon list */
         .close-addons {
             position: absolute;
             top: 8px;
@@ -247,7 +242,6 @@ const STREMIO_API_URL = 'https://api.strem.io';
             document.getElementById('addon-list').style.display = 'none';
         }
         
-        // Close when clicking outside
         document.addEventListener('click', function(event) {
             const addonManager = document.querySelector('.addon-manager');
             if (!addonManager.contains(event.target)) {
@@ -264,28 +258,26 @@ const STREMIO_API_URL = 'https://api.strem.io';
                 try {
                     const response = await fetch('/api/addon-info?url=' + encodeURIComponent(addon));
                     const data = await response.json();
-                    html += \`
-                        <div class="addon-item" onclick="installAddon('\${addon}')">
-                            <strong>\${data.name || 'Unknown Addon'}</strong>
-                            <small>\${data.description || addon.split('/')[2]}</small>
-                        </div>
-                    \`;
+                    const name = data.name || 'Unknown Addon';
+                    const desc = data.description || addon.split('/')[2] || 'Click to install';
+                    html += '<div class="addon-item" onclick="installAddon(\\'' + addon + '\\')">' +
+                           '<strong>' + name + '</strong>' +
+                           '<small>' + desc + '</small>' +
+                           '</div>';
                 } catch (e) {
-                    const name = addon.split('/')[2];
-                    html += \`
-                        <div class="addon-item" onclick="installAddon('\${addon}')">
-                            <strong>\${name}</strong>
-                            <small>Click to install</small>
-                        </div>
-                    \`;
+                    const fallbackName = addon.split('/')[2] || 'Addon';
+                    html += '<div class="addon-item" onclick="installAddon(\\'' + addon + '\\')">' +
+                           '<strong>' + fallbackName + '</strong>' +
+                           '<small>Click to install</small>' +
+                           '</div>';
                 }
             }
             content.innerHTML = html;
         }
         
         function installAddon(addonUrl) {
-            alert('Opening addon: ' + addonUrl.split('/')[2]);
-            // Try to open in Stremio
+            const name = addonUrl.split('/')[2] || 'addon';
+            alert('Opening addon: ' + name);
             window.open(addonUrl, '_blank');
             closeAddons();
         }
