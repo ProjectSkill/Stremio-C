@@ -1,141 +1,114 @@
+// COMPLETE STREMIO CUSTOM SERVER - JUST COPY & PASTE THIS!
 const express = require('express');
-const { exec } = require('child_process');
-const path = require('path');
-const httpProxy = require('http-proxy-middleware');
-
 const app = express();
 const PORT = process.env.PORT || 8080;
 
-// Start Stremio Server in background
-const STREMIO_PORT = 11470;
-const startStremioServer = () => {
-    // Download and run Stremio server
-    exec(`npx -y stremio-server-node --port=${STREMIO_PORT}`, (error, stdout, stderr) => {
-        if (error) console.log('Stremio server error:', error);
-        console.log('Stremio server output:', stdout);
-    });
-};
+// Auto-install dependencies on first run
+const { execSync } = require('child_process');
+try {
+  execSync('npm install express cors stremio-addon-sdk', { stdio: 'inherit' });
+} catch(e) {}
 
-// Start server on app launch
-startStremioServer();
+const cors = require('cors');
+app.use(cors());
 
-// Wait for server to be ready
-setTimeout(() => {
-    console.log('Stremio server should be running on', STREMIO_PORT);
-}, 5000);
-
-// Proxy all Stremio traffic
-app.use('/stremio', httpProxy.createProxyMiddleware({
-    target: `http://localhost:${STREMIO_PORT}`,
-    changeOrigin: true,
-    ws: true,
-    pathRewrite: { '^/stremio': '' }
-}));
-
-// Main UI with working controls
-app.get('/', (req, res) => {
-    res.send(`
+// STREMIO WEB PLAYER WITH EXTERNAL PLAYER BUTTON
+const STREMIO_WEB_HTML = `
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Stremio</title>
+    <title>Custom Stremio</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-        * { margin: 0; padding: 0; }
-        body { background: #0f0f14; font-family: system-ui; }
-        
-        iframe {
-            width: 100vw;
-            height: 100vh;
-            border: none;
+        body { margin: 0; background: #0c0e15; color: white; font-family: Arial; }
+        .container { padding: 20px; }
+        .player-btn { 
+            background: #7B5BF2; 
+            color: white; 
+            padding: 15px 30px; 
+            border: none; 
+            border-radius: 5px; 
+            font-size: 18px; 
+            cursor: pointer; 
+            margin: 10px;
         }
-        
-        #toggle {
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 9999;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            border: 1px solid rgba(255,255,255,0.2);
-            padding: 8px 12px;
-            border-radius: 20px;
-            cursor: pointer;
-            font-size: 12px;
-        }
-        
-        #controls {
-            position: fixed;
-            top: 50px;
-            left: 10px;
-            z-index: 9998;
-            background: rgba(0,0,0,0.95);
-            border-radius: 8px;
-            padding: 10px;
-            display: none;
-        }
-        
-        #controls.show { display: block; }
-        
-        .btn {
-            display: block;
-            background: none;
-            border: none;
-            color: white;
-            padding: 8px;
-            text-align: left;
-            cursor: pointer;
-            width: 100%;
-        }
-        
-        .btn:hover { background: rgba(139,92,246,0.3); }
+        .player-btn:hover { background: #6B4BE2; }
+        iframe { width: 100%; height: 600px; border: none; }
     </style>
 </head>
 <body>
-    <iframe src="/stremio/"></iframe>
-    
-    <button id="toggle" onclick="toggleControls()">OFF</button>
-    
-    <div id="controls">
-        <button class="btn" onclick="window.open('https://torrentio.strem.fun','_blank')">+ Torrentio</button>
-        <button class="btn" onclick="window.open('https://cyberflix.elfhosted.com','_blank')">+ Cyberflix</button>
-        <hr style="border:none;border-top:1px solid #333;margin:5px 0">
-        <button class="btn" onclick="openPlayer('vlc')">VLC</button>
-        <button class="btn" onclick="openPlayer('infuse')">Infuse</button>
+    <div class="container">
+        <h1>🎬 Custom Stremio Player</h1>
+        
+        <!-- STREMIO WEB EMBED -->
+        <iframe id="stremio-frame" src="https://web.stremio.com"></iframe>
+        
+        <!-- EXTERNAL PLAYER BUTTONS -->
+        <div style="margin-top: 20px;">
+            <button class="player-btn" onclick="openInVLC()">📺 Open in VLC</button>
+            <button class="player-btn" onclick="openInMPV()">🎮 Open in MPV</button>
+            <button class="player-btn" onclick="copyStreamLink()">📋 Copy Stream Link</button>
+        </div>
+        
+        <!-- PASTE YOUR STREAM URL HERE -->
+        <input type="text" id="stream-url" placeholder="Paste stream URL here" 
+               style="width: 80%; padding: 10px; margin: 10px 0; background: #1a1d29; color: white; border: 1px solid #7B5BF2;">
     </div>
-    
+
     <script>
-        let controlsVisible = false;
-        
-        function toggleControls() {
-            controlsVisible = !controlsVisible;
-            document.getElementById('controls').className = controlsVisible ? 'show' : '';
-            document.getElementById('toggle').innerText = controlsVisible ? 'ON' : 'OFF';
+        // EXTERNAL PLAYER FUNCTIONS
+        function openInVLC() {
+            const url = document.getElementById('stream-url').value || prompt('Enter stream URL:');
+            if(url) window.open('vlc://' + url);
         }
         
-        function openPlayer(type) {
-            // Get current stream from Stremio
-            fetch('/stremio/api/current-stream')
-                .then(r => r.json())
-                .then(data => {
-                    if (data.url) {
-                        const urls = {
-                            vlc: 'vlc://x-callback-url/stream?url=' + encodeURIComponent(data.url),
-                            infuse: 'infuse://x-callback-url/play?url=' + encodeURIComponent(data.url)
-                        };
-                        window.location = urls[type];
-                    } else {
-                        alert('No stream playing');
-                    }
-                });
+        function openInMPV() {
+            const url = document.getElementById('stream-url').value || prompt('Enter stream URL:');
+            if(url) window.open('mpv://' + url);
         }
+        
+        function copyStreamLink() {
+            const url = document.getElementById('stream-url').value || prompt('Enter stream URL to copy:');
+            if(url) {
+                navigator.clipboard.writeText(url);
+                alert('Stream link copied!');
+            }
+        }
+        
+        // AUTO-DETECT STREAM URLS FROM IFRAME (if possible)
+        window.addEventListener('message', function(e) {
+            if(e.data && e.data.includes('http')) {
+                document.getElementById('stream-url').value = e.data;
+            }
+        });
     </script>
 </body>
 </html>
-    `);
+`;
+
+// MAIN ROUTE - SERVES THE CUSTOM STREMIO
+app.get('/', (req, res) => {
+    res.send(STREMIO_WEB_HTML);
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-    console.log('Server on port', PORT);
+// ADDON MANIFEST (for custom addons)
+app.get('/manifest.json', (req, res) => {
+    res.json({
+        id: 'custom.stremio',
+        version: '1.0.0',
+        name: 'Custom Stremio with External Players',
+        types: ['movie', 'series'],
+        catalogs: [],
+        resources: ['stream']
+    });
+});
+
+// START SERVER
+app.listen(PORT, () => {
+    console.log(`
+    🎉 STREMIO CUSTOM IS RUNNING!
+    📍 Local: http://localhost:${PORT}
+    🔒 HTTPS is automatic on Render
+    📺 External players ready!
+    `);
 });
