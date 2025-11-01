@@ -1,4 +1,5 @@
 // COMPLETE STREMIO CUSTOM SERVER - JUST COPY & PASTE THIS!
+// COMPLETE STREMIO CUSTOM SERVER - JUST COPY & PASTE THIS!
 const express = require('express');
 const cors = require('cors');
 const { execSync } = require('child_process');
@@ -16,7 +17,8 @@ try {
 app.use(cors());
 
 // STREMIO WEB PLAYER WITH EXTERNAL PLAYER BUTTON
-const STREMIO_WEB_HTML = `
+const STREMIO_WEB_HTML = `srv-https://stremio-c.onrender.com`; // your HTML goes here
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -96,14 +98,15 @@ app.get('/', (req, res) => {
 
 // ADDON MANIFEST (for custom addons)
 app.get('/manifest.json', (req, res) => {
-    res.json({
-        id: 'custom.stremio',
-        version: '1.0.0',
-        name: 'Custom Stremio with External Players',
-        types: ['movie', 'series'],
-        catalogs: [],
-        resources: ['stream']
-    });
+  res.json({
+    id: 'custom.stremio',
+    version: '1.0.0',
+    name: 'Custom Stremio with External Players',
+    description: 'A custom Stremio server with external player support',
+    types: ['movie', 'series'],
+    catalogs: [],
+    resources: ['stream']
+  });
 });
 
 // START SERVER
