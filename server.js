@@ -1,55 +1,66 @@
 const express = require('express');
-const cors = require('cors');
-
 const app = express();
+
+app.disable('x-powered-by');
+
 const PORT = process.env.PORT || 8080;
 
-app.use(cors());
-
-const STREMIO_WEB_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Custom Stremio</title>
-<meta name="viewport" content="width=device-width, initial-scale=1"><style>
-body{margin:0;background:#0c0e15;color:#fff;font-family:Arial}.container{padding:20px}
-.player-btn{background:#7B5BF2;color:#fff;padding:15px 30px;border:none;border-radius:5px;font-size:18px;cursor:pointer;margin:10px}
-.player-btn:hover{background:#6B4BE2}iframe{width:100%;height:600px;border:none}code{background:#1a1d29;padding:2px 4px;border-radius:3px}
-</style></head><body><div class="container"><h1>🎬 Custom Stremio Player</h1>
-<p>Add‑on URL: <code>https://stremio-c.onrender.com</code></p><iframe id="stremio-frame" src="https://web.stremio.com"></iframe>
-<div style="margin-top:20px;"><button class="player-btn" onclick="openInVLC()">📺 Open in VLC</button>
-<button class="player-btn" onclick="openInMPV()">🎮 Open in MPV</button>
-<button class="player-btn" onclick="copyStreamLink()">📋 Copy Stream Link</button></div>
-<input type="text" id="stream-url" placeholder="Paste stream URL here" style="width:80%;padding:10px;margin:10px 0;background:#1a1d29;color:#fff;border:1px solid #7B5BF2;">
-</div><script>
-function openInVLC(){const url=document.getElementById('stream-url').value||prompt('Enter stream URL:');if(url)window.open('vlc://'+url)}
-function openInMPV(){const url=document.getElementById('stream-url').value||prompt('Enter stream URL:');if(url)window.open('mpv://'+url)}
-function copyStreamLink(){const url=document.getElementById('stream-url').value||prompt('Enter stream URL to copy:');if(url){navigator.clipboard.writeText(url);alert('Stream link copied!')}}
-window.addEventListener('message',function(e){if(e.data&&e.data.includes('http')){document.getElementById('stream-url').value=e.data}})
-</script></body></html>`;
-
-app.get('/', (req, res) => {
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.end(STREMIO_WEB_HTML);
-});
-
+// Manifest — build, buffer, set headers, single end
 app.get('/manifest.json', (req, res) => {
   const manifest = {
-    id: 'custom.stremio',
+    id: 'com.stremio.imvdb',
     version: '1.0.0',
-    name: 'Custom Stremio with External Players',
-    description: 'A custom Stremio server with external player support',
+    name: 'IMVDb Music Videos',
+    description: 'Stream music videos from IMVDb',
+    types: ['movie'],
+    catalogs: [{ type: 'movie', id: 'imvdb-videos', name: 'Music Videos' }],
     resources: ['stream'],
-    types: ['movie', 'series'],
-    catalogs: []
+    idPrefixes: ['imvdb:']
   };
+
+  const json = JSON.stringify(manifest);
+  const buf = Buffer.from(json, 'utf8');
+
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.end(JSON.stringify(manifest));
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.setHeader('Content-Length', String(buf.length));
+
+  return res.status(200).end(buf);
 });
 
+// Small health endpoint for platform probes
 app.get('/health', (req, res) => {
+  const ok = Buffer.from(JSON.stringify({ status: 'ok' }), 'utf8');
   res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Length', String(ok.length));
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.end(JSON.stringify({ status: 'ok' }));
+  return res.status(200).end(ok);
+});
+
+// Useful debug endpoint to check first bytes and length
+app.get('/debug/manifest', (req, res) => {
+  const manifest = { id: 'com.stremio.imvdb', version: '1.0.0' };
+  const json = JSON.stringify(manifest);
+  const bytes = Buffer.from(json, 'utf8');
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  return res.status(200).send(
+    `First 10 bytes (hex): ${bytes.slice(0, 10).toString('hex')}\n` +
+    `First 10 chars: "${json.substring(0, 10)}"\n` +
+    `Full length: ${bytes.length} bytes\n`
+  );
+});
+
+// Fallback returns JSON only (no HTML)
+app.use((req, res) => {
+  const body = Buffer.from(JSON.stringify({ error: 'not found' }), 'utf8');
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Length', String(body.length));
+  return res.status(404).end(body);
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Running on port ${PORT}`);
+  console.log(`Running on ${PORT}`);
 });
