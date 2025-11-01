@@ -3,5 +3,8 @@ services:
     name: stremio-c
     env: docker
     dockerfilePath: ./Dockerfile
-    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 3000
+    healthCheckPath: /manifest.json
     numInstances: 1
