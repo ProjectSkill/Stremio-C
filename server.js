@@ -17,9 +17,7 @@ try {
 app.use(cors());
 
 // STREMIO WEB PLAYER WITH EXTERNAL PLAYER BUTTON
-const STREMIO_WEB_HTML = `srv-https://stremio-c.onrender.com`; // your HTML goes here
-
-
+const STREMIO_WEB_HTML = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -45,6 +43,9 @@ const STREMIO_WEB_HTML = `srv-https://stremio-c.onrender.com`; // your HTML goes
 <body>
     <div class="container">
         <h1>🎬 Custom Stremio Player</h1>
+
+        <!-- Show your server URL -->
+        <p>Add‑on URL: <code>https://stremio-c.onrender.com</code></p>
         
         <!-- STREMIO WEB EMBED -->
         <iframe id="stremio-frame" src="https://web.stremio.com"></iframe>
@@ -62,7 +63,6 @@ const STREMIO_WEB_HTML = `srv-https://stremio-c.onrender.com`; // your HTML goes
     </div>
 
     <script>
-        // EXTERNAL PLAYER FUNCTIONS
         function openInVLC() {
             const url = document.getElementById('stream-url').value || prompt('Enter stream URL:');
             if(url) window.open('vlc://' + url);
@@ -81,7 +81,6 @@ const STREMIO_WEB_HTML = `srv-https://stremio-c.onrender.com`; // your HTML goes
             }
         }
         
-        // AUTO-DETECT STREAM URLS FROM IFRAME (if possible)
         window.addEventListener('message', function(e) {
             if(e.data && e.data.includes('http')) {
                 document.getElementById('stream-url').value = e.data;
