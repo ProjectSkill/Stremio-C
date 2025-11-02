@@ -1,18 +1,21 @@
+# builder
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package.json gen-lock.yml scripts/convert-gen-lock.js ./
-# convert gen-lock.yml -> package-lock.json (if you use conversion), otherwise omit
-RUN apk add --no-cache curl ca-certificates python3 make g++ \
-  && node scripts/convert-gen-lock.js gen-lock.yml package-lock.json || true
+COPY package.json ./
+# if no package-lock.json in repo, create one from package.json then install exact deps
+RUN if [ ! -f package-lock.json ]; then npm i --package-lock-only; fi
+COPY package-lock.json ./
 RUN npm ci --omit=dev
 COPY . .
 RUN npm run build || true
 
+# final image with node + nginx + tini
 FROM node:20-alpine
 RUN apk add --no-cache nginx tini gettext
 WORKDIR /app
 COPY --from=builder /app /app
-# nginx template (uses envsubst to substitute $PORT)
+
+# nginx template (envsubst will replace $PORT)
 RUN mkdir -p /run/nginx
 RUN cat > /etc/nginx/conf.d/default.conf.template << 'EOF'
 server {
@@ -25,8 +28,11 @@ server {
   }
 }
 EOF
-COPY scripts/start.sh /usr/local/bin/start.sh
+
+# copy start script (start.sh must be at repo root)
+COPY start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
+
 EXPOSE 10000
 WORKDIR /app
 CMD ["/sbin/tini", "--", "/usr/local/bin/start.sh"]
