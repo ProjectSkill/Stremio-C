@@ -17,13 +17,14 @@ COPY --from=builder /app /app
 # install tini for reliable PID 1 and signal forwarding
 RUN apk add --no-cache tini
 
-# make entrypoint script executable (script will generate nginx conf at runtime)
+# copy start script (will generate nginx conf at runtime)
 COPY start.sh /usr/local/bin/start.sh
 RUN chmod +x /usr/local/bin/start.sh
 
-EXPOSE 10000
+# expose a default port (Render will supply PORT at runtime)
 ENV PORT 10000
 ENV NODE_PORT 11470
+EXPOSE 10000
 
 ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["/usr/local/bin/start.sh"]
