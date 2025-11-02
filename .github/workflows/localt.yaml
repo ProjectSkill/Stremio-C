@@ -20,26 +20,25 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          # We REMOVED 'cache: npm' here.
-          # Caching requires a lockfile, but this job's purpose is to create it.
 
       - name: Install dependencies & create lockfile
-        # This command will automatically generate package-lock.json
+        # --package-lock-only is fast and only generates the lockfile
         run: npm install --package-lock-only
 
-      - name a: Commit and push package-lock.json
+      - name: Commit and push package-lock.json
         run: |
           # Configure git user for the commit
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Add, commit, and push the new file
+          # Add the new file to staging
           git add package-lock.json
           
-          # We check if there are changes to commit to avoid an error if the file already exists and is up-to-date
-          if git diff --staged --quiet; then
-            echo "package-lock.json is already up-to-date."
-          else
+          # Commit only if there are changes to the lockfile
+          if ! git diff --staged --quiet; then
+            echo "package-lock.json created/updated. Committing..."
             git commit -m "build: generate package-lock.json"
             git push
+          else
+            echo "package-lock.json is already up-to-date."
           fi
