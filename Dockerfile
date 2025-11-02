@@ -1,25 +1,28 @@
 # builder: install deps and build app
 FROM node:20-alpine AS builder
 WORKDIR /app
-# copy package files first for cached installs
-COPY package.json package-lock.json* ./
-RUN npm ci --omit=dev
+
+# copy package.json first so install step can be cached separately from the app sources
+COPY package.json ./
+
+# use npm install (not npm ci) to avoid strict lockfile failures in the builder
+RUN npm install --omit=dev --no-audit --no-fund
+
 # copy the rest of the project (server.js, inject.js, etc.)
 COPY . .
+
 # optional build step if your project has one
 RUN npm run build --if-present
 
 # runtime image
 FROM node:20-alpine
-# install runtime packages (nginx, tini, envsubst provider, curl)
 RUN apk add --no-cache nginx tini gettext curl \
   && mkdir -p /etc/nginx /etc/nginx/conf.d /run/nginx /var/log/nginx /var/cache/nginx
 
 WORKDIR /app
-# copy app from builder
 COPY --from=builder /app /app
 
-# main nginx.conf
+# nginx main config
 RUN cat > /etc/nginx/nginx.conf <<'EOF'
 user  nginx;
 worker_processes  auto;
@@ -36,7 +39,7 @@ http {
 }
 EOF
 
-# nginx server template (rendered at container start by server.js)
+# nginx server template
 RUN cat > /etc/nginx/conf.d/default.conf.template <<'EOF'
 server {
   listen ${PORT:-10000};
@@ -60,9 +63,7 @@ EOF
 
 EXPOSE 10000
 
-# healthcheck uses curl against the internal stremio port
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://127.0.0.1:11470/ || exit 1
 
-# run node under tini (server.js contains launcher logic that renders nginx template and spawns nginx)
 CMD ["/sbin/tini", "--", "node", "server.js"]
