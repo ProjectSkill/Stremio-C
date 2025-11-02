@@ -1,19 +1,21 @@
-# builder stage: install deps and build app
+# builder
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package.json ./
+COPY package.json package-lock.json* ./
 RUN npm i --package-lock-only && npm ci --omit=dev
 COPY . .
 RUN npm run build || true
 
-# final/runtime stage
+# final/runtime
 FROM node:20-alpine
+# install runtime packages first
 RUN apk add --no-cache nginx tini gettext curl \
   && mkdir -p /etc/nginx /etc/nginx/conf.d /run/nginx /var/log/nginx /var/cache/nginx
 
 WORKDIR /app
 COPY --from=builder /app /app
 
+# main nginx conf
 RUN cat > /etc/nginx/nginx.conf <<'EOF'
 user  nginx;
 worker_processes  auto;
@@ -30,6 +32,7 @@ http {
 }
 EOF
 
+# server template
 RUN cat > /etc/nginx/conf.d/default.conf.template <<'EOF'
 server {
   listen ${PORT:-10000};
