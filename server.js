@@ -1,4 +1,11 @@
-// server.js — Stremio addon + runtime launcher (starts Node, renders nginx template, then spawns nginx)
+/**
+ * server.js
+ * - starts express + stremio addon
+ * - renders nginx template to /etc/nginx/conf.d/default.conf at runtime
+ * - waits for manifest to be reachable then starts nginx in foreground
+ *
+ * Single-file launcher: no start.sh, no separate app.js
+ */
 const express = require('express');
 const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
 const fs = require('fs');
@@ -12,26 +19,32 @@ const HOST = process.env.HOST || '127.0.0.1';
 const TEMPLATE_PATH = '/etc/nginx/conf.d/default.conf.template';
 const OUTPUT_CONF = '/etc/nginx/conf.d/default.conf';
 
-// ---- helper: render nginx template from env into real conf
+function safeRead(filePath) {
+  try { return fs.readFileSync(path.join(__dirname, filePath), 'utf8'); }
+  catch (e) { console.error('safeRead error', filePath, e); return ''; }
+}
+
 function renderNginxTemplate() {
   try {
     if (!fs.existsSync(TEMPLATE_PATH)) {
       console.warn('nginx template not found:', TEMPLATE_PATH);
       return;
     }
-    const tpl = fs.readFileSync(TEMPLATE_PATH, 'utf8');
-    const replaced = tpl.replace(/\$\{PORT:-10000\}/g, process.env.PORT || '10000')
-      .replace(/\$\{RENDER_EXTERNAL_HOSTNAME:-_\}/g, process.env.RENDER_EXTERNAL_HOSTNAME || '_')
-      .replace(/\$\{STREMIO_PORT\}/g, String(process.env.STREMIO_PORT || process.env.NODE_PORT || '11470'));
-    fs.writeFileSync(OUTPUT_CONF, replaced, 'utf8');
+    let tpl = fs.readFileSync(TEMPLATE_PATH, 'utf8');
+
+    // Simple env substitution for the variables used in template
+    tpl = tpl.replace(/\$\{PORT:-10000\}/g, process.env.PORT || '10000')
+             .replace(/\$\{RENDER_EXTERNAL_HOSTNAME:-_\}/g, process.env.RENDER_EXTERNAL_HOSTNAME || '_')
+             .replace(/\$\{STREMIO_PORT\}/g, String(process.env.STREMIO_PORT || process.env.NODE_PORT || '11470'));
+
+    fs.writeFileSync(OUTPUT_CONF, tpl, 'utf8');
     console.log('Rendered nginx config to', OUTPUT_CONF);
   } catch (err) {
     console.error('renderNginxTemplate error', err);
   }
 }
 
-// ---- helper: wait for URL to respond (manifest)
-function waitForUrl(url, timeoutMs = 15000, intervalMs = 300) {
+function waitForUrl(url, timeoutMs = 20000, intervalMs = 300) {
   const start = Date.now();
   return new Promise((resolve, reject) => {
     const attempt = () => {
@@ -39,7 +52,7 @@ function waitForUrl(url, timeoutMs = 15000, intervalMs = 300) {
         res.resume();
         resolve();
       });
-      req.on('error', (err) => {
+      req.on('error', () => {
         if (Date.now() - start > timeoutMs) return reject(new Error('timeout waiting for ' + url));
         setTimeout(attempt, intervalMs);
       });
@@ -48,23 +61,17 @@ function waitForUrl(url, timeoutMs = 15000, intervalMs = 300) {
   });
 }
 
-// ---- create express app with endpoints and addon
-function createAndAttachAddon() {
-  const app = express();
-
-  function safeRead(filePath) {
-    try { return fs.readFileSync(path.join(__dirname, filePath), 'utf8'); }
-    catch (e) { console.error('safeRead error', filePath, e); return ''; }
-  }
-
+function createAndAttachAddon(app) {
+  // Serve inject.js
   app.get('/inject.js', (req, res) => {
     const js = safeRead('inject.js');
     res.type('application/javascript; charset=utf-8').send(js);
   });
 
+  // health endpoints
   app.get('/healthz', (req, res) => res.status(200).send('ok'));
   app.get('/manifest.json', (req, res) => {
-    // serve the manifest for external health checks (SDK also exposes its own /manifest but this is safe)
+    // a simple manifest endpoint read by external checks; SDK also exposes its own /manifest
     res.json({
       id: 'org.example.light',
       version: '1.0.0',
@@ -75,6 +82,7 @@ function createAndAttachAddon() {
     });
   });
 
+  // allstreams endpoint
   app.get('/allstreams/:id', async (req, res) => {
     try {
       const upstream = `https://torrentio.strem.io/stream/movie/${encodeURIComponent(req.params.id)}.json`;
@@ -102,6 +110,7 @@ function createAndAttachAddon() {
     }
   });
 
+  // minimal HTML redirect (injects script)
   app.use((req, res, next) => {
     if (req.path.endsWith('.html') || req.path === '/') {
       const html = `<!doctype html>
@@ -118,7 +127,7 @@ function createAndAttachAddon() {
     return next();
   });
 
-  // manifest used by addon builder (streams-only to avoid catalogs errors)
+  // manifest for builder: streams-only (no catalogs)
   const manifest = {
     id: 'org.example.light',
     version: '1.0.0',
@@ -130,36 +139,47 @@ function createAndAttachAddon() {
   };
 
   const builder = new addonBuilder(manifest);
-  builder.defineStreamHandler(async (args) => ({ streams: [] }));
 
-  // attach SDK to this express app and let it create its own routes
+  // example placeholder stream handler (replace with your logic)
+  builder.defineStreamHandler(async (args) => {
+    return { streams: [] };
+  });
+
+  // attach the SDK to the express app
   serveHTTP(app, builder, { port: PORT, host: HOST });
-
-  return app;
 }
 
-// ---- main launcher
 (async () => {
   try {
-    // render nginx template into real conf (do this before starting nginx)
     renderNginxTemplate();
 
-    // start server (the serveHTTP above will bind the app)
-    createAndAttachAddon();
-    // Wait for manifest endpoint to be reachable before launching nginx
+    const app = express();
+    createAndAttachAddon(app);
+
+    // Start express listening so serveHTTP + SDK routes are bound
+    const server = app.listen(PORT, HOST, () => {
+      console.log(`Stremio addon + server listening on ${HOST}:${PORT}`);
+    });
+
+    server.on('error', (err) => {
+      console.error('server listen error', err);
+      process.exit(1);
+    });
+
+    // wait for manifest to be reachable before starting nginx
     const manifestUrl = `http://127.0.0.1:${PORT}/manifest.json`;
     console.log('Waiting for Stremio manifest at', manifestUrl);
     await waitForUrl(manifestUrl, 20000, 300);
-
     console.log('Stremio ready — starting nginx in foreground');
+
+    // spawn nginx (foreground)
     const nginx = spawn('nginx', ['-g', 'daemon off;'], { stdio: 'inherit' });
 
-    // forward signals cleanly
-    const forward = (sig) => {
+    const forwardSignal = (sig) => {
       try { nginx.kill(sig); } catch (e) {}
     };
-    process.on('SIGINT', () => forward('SIGINT'));
-    process.on('SIGTERM', () => forward('SIGTERM'));
+    process.on('SIGINT', () => forwardSignal('SIGINT'));
+    process.on('SIGTERM', () => forwardSignal('SIGTERM'));
 
     nginx.on('exit', (code, signal) => {
       console.log('nginx exited', { code, signal });
