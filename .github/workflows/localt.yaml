@@ -1,0 +1,44 @@
+name: Create package-lock.json
+
+# This allows you to run the workflow manually from the Actions tab
+on:
+  workflow_dispatch:
+
+jobs:
+  create-lockfile:
+    runs-on: ubuntu-latest
+    
+    # This is the most important fix: It gives the workflow permission to push code back to your repo.
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          # Cache npm packages to speed up future runs
+          cache: 'npm'
+
+      - name: Install dependencies and create lockfile
+        run: npm install
+
+      - name: Commit and push package-lock.json
+        run: |
+          # Check if the lock file was actually created or changed
+          if ! git diff --quiet package-lock.json; then
+            echo "package-lock.json has changed. Committing..."
+            # Configure git user for the commit
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            
+            # Add, commit, and push the new file
+            git add package-lock.json
+            git commit -m "build: generate package-lock.json"
+            git push
+          else
+            echo "package-lock.json is already up to date. No changes to commit."
+          fi
