@@ -1,6 +1,27 @@
-sservices:
-  - type: web
-    name: stremio-web
-    env: docker
-    plan: free
-    healthCheckPath: /
+# docker-compose.yml for Render deployment
+version: '3.8'
+
+services:
+  stremio:
+    image: stremio/server:latest
+    environment:
+      - NO_CORS=1
+      - FFMPEG_BIN=/usr/bin/ffmpeg
+    expose:
+      - "11470"
+      - "12470"
+    restart: unless-stopped
+    volumes:
+      - ./stremio-data:/root/.stremio-server
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./custom-scripts:/usr/share/nginx/scripts:ro
+      - ./ssl-certs:/etc/nginx/ssl:ro
+    depends_on:
+      - stremio
