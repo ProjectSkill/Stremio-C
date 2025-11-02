@@ -1,7 +1,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY . .
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 FROM nginx:alpine-slim
 COPY --from=builder /app /app
