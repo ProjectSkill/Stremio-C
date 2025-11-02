@@ -1,3 +1,4 @@
+// server.js — Stremio addon + helper endpoints
 const express = require('express');
 const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
 const fs = require('fs');
@@ -10,19 +11,22 @@ const app = express();
 const PORT = Number(process.env.STREMIO_PORT || process.env.NODE_PORT || 11470);
 const HOST = process.env.HOST || '127.0.0.1';
 
-// 0. helper: safe read
+// safe read helper
 function safeRead(filePath) {
   try { return fs.readFileSync(path.join(__dirname, filePath), 'utf8'); }
   catch (e) { console.error('safeRead error', filePath, e); return ''; }
 }
 
-// 1. Serve burger script
+// Serve inject.js
 app.get('/inject.js', (req, res) => {
   const js = safeRead('inject.js');
   res.type('application/javascript; charset=utf-8').send(js);
 });
 
-// 2. All free streams endpoint
+// Simple health endpoint used by nginx health proxy
+app.get('/healthz', (req, res) => res.status(200).send('ok'));
+
+// All free streams endpoint
 app.get('/allstreams/:id', async (req, res) => {
   try {
     const upstream = `https://torrentio.strem.io/stream/movie/${encodeURIComponent(req.params.id)}.json`;
@@ -50,7 +54,7 @@ app.get('/allstreams/:id', async (req, res) => {
   }
 });
 
-// 3. Inject burger on certain HTML requests (keep minimal and safe)
+// Minimal redirect HTML for movie pages (injects /inject.js)
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') || req.path === '/') {
     const html = `<!doctype html>
@@ -67,25 +71,26 @@ app.use((req, res, next) => {
   return next();
 });
 
-// 4. Stremio addon: build manifest and builder BEFORE serveHTTP
+// Manifest: streams-only (no catalogs) — avoids manifest.catalogs error
 const manifest = {
   id: 'org.example.light',
   version: '1.0.0',
   name: 'Light add-on',
-  description: 'Minimal Stremio addon',
-  resources: ['catalog', 'stream'],
+  description: 'Minimal Stremio addon (streams only)',
+  resources: ['stream'],
   types: ['movie'],
   behaviorHints: { configurable: false }
 };
 
+// Create builder BEFORE serveHTTP
 const builder = new addonBuilder(manifest);
 
-// example stream handler (adjust to your real implementation)
+// Example stream handler (empty placeholder)
 builder.defineStreamHandler(async (args) => {
   return { streams: [] };
 });
 
-// 5. Serve the addon using stremio-addon-sdk on the same express app
+// Attach the addon to express and start listening
 serveHTTP(app, builder, { port: PORT, host: HOST });
 
-console.log('Stremio addon + server starting on', `${HOST}:${PORT}`);
+console.log(`Stremio addon + server starting on ${HOST}:${PORT}`);
