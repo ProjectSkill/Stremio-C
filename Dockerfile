@@ -1,8 +1,13 @@
 # builder stage
 FROM node:20-alpine AS builder
 WORKDIR /app
-COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+
+# copy package files; allow missing package-lock.json
+COPY package.json package-lock.json* ./
+
+# prefer npm ci when lockfile exists, fallback to npm install otherwise
+RUN if [ -f package-lock.json ]; then npm ci --omit=dev; else npm install --omit=dev; fi
+
 COPY . .
 RUN npm run build || true
 RUN echo "built at $(date -u)" > build-info.txt
