@@ -32,7 +32,7 @@ http {
 }
 EOF
 
-# server template
+# server template (rendered by Docker environment using envsubst at build time)
 RUN cat > /etc/nginx/conf.d/default.conf.template <<'EOF'
 server {
   listen ${PORT:-10000};
@@ -54,12 +54,15 @@ server {
 }
 EOF
 
+# Render config template into real config at container start using envsubst inside Dockerfile CMD via node app
 EXPOSE 10000
 
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://127.0.0.1:11470/ || exit 1
 
-COPY start.sh /usr/local/bin/start.sh
-RUN chmod +x /usr/local/bin/start.sh
+COPY . .
+# make sure node files are executable where needed
+USER root
 
-CMD ["/sbin/tini", "--", "/usr/local/bin/start.sh"]
+# Use tini as PID1 and run node launcher (app.js) — no shell script required
+CMD ["/sbin/tini", "--", "node", "app.js"]
