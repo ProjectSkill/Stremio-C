@@ -11,7 +11,7 @@ RUN npm run build --if-present
 
 # runtime image
 FROM node:20-alpine
-# install runtime packages (nginx, tiny init, envsubst provider, curl)
+# install runtime packages (nginx, tini, envsubst provider, curl)
 RUN apk add --no-cache nginx tini gettext curl \
   && mkdir -p /etc/nginx /etc/nginx/conf.d /run/nginx /var/log/nginx /var/cache/nginx
 
