@@ -1,15 +1,35 @@
 #!/bin/sh
-set -e
+set -eu
 
-: "${PORT:=10000}"
+# runtime ports
+NGINX_PORT=${PORT:-10000}
+NODE_PORT=${NODE_PORT:-11470}
 
-# render nginx config
-envsubst '\$PORT' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf
+# write nginx config at container start so it uses runtime PORT
+cat > /etc/nginx/conf.d/default.conf << EOF
+server {
+  listen ${NGINX_PORT} default_server;
+  server_name _;
 
-if [ -z "$RENDER_EXTERNAL_HOSTNAME" ]; then
-  echo "WARN: RENDER_EXTERNAL_HOSTNAME not set; using localhost"
-fi
+  location / {
+    proxy_pass http://127.0.0.1:${NODE_PORT};
+    proxy_set_header Host \$host;
+    proxy_set_header X-Real-IP \$remote_addr;
+    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+    proxy_buffering off;
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+  }
+}
+EOF
 
-# start node in background and nginx in foreground under tini
-node server.js --transport="https://${RENDER_EXTERNAL_HOSTNAME:-localhost}/manifest.json" &
+# ensure app dir is present and writable
+cd /app
+
+# start node app in background, stdout/stderr to container logs
+# server.js must respect NODE_PORT or CLI --port
+nohup sh -c "NODE_PORT=${NODE_PORT} node server.js --port=${NODE_PORT}" > /proc/1/fd/1 2>/proc/1/fd/2 &
+
+# start nginx in foreground (tini is PID 1 and will forward signals)
 nginx -g 'daemon off;'
