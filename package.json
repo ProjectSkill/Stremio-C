@@ -4,6 +4,10 @@
   "private": true,
   "dependencies": {
     "express": "^4.19.2",
-    "stremio-addon-sdk": "^1.2.3"
+    "stremio-addon-sdk": "^1.2.3",
+    "node-fetch": "^2.6.7"
+  },
+  "scripts": {
+    "start": "node server.js"
   }
 }
