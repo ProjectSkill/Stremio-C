@@ -1,9 +1,6 @@
-services:
+sservices:
   - type: web
-    name: stremio-c
+    name: stremio-web
     env: docker
-    dockerfilePath: ./Dockerfile
-    healthCheckPath: /health
-    envVars:
-      - key: PORT
-        value: 3000
+    plan: free
+    healthCheckPath: /
