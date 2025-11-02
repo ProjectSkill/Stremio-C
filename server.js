@@ -1,11 +1,15 @@
-// OFFICIAL LIGHT Stremio server + burger magic
+// OFFICIAL LIGHT Stremio server + burger magic (updated)
 const express = require('express');
 const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
 const fs = require('fs');
 const path = require('path');
+const fetch = globalThis.fetch || require('node-fetch');
 
 const app = express();
-const PORT = process.env.NODE_PORT || 11470;
+
+// Prefer STREMIO_PORT, then NODE_PORT, then default 11470
+const PORT = Number(process.env.STREMIO_PORT || process.env.NODE_PORT || 11470);
+const HOST = process.env.HOST || '0.0.0.0';
 
 // 0. helper: safe read
 function safeRead(filePath) {
@@ -33,8 +37,6 @@ app.get('/allstreams/:id', async (req, res) => {
       .filter(s => s && s.url && !s.url.includes('debrid'))
       .slice(0, 15)
       .map((s) => {
-        // if s.url is absolute (starts with http/https), use it unchanged,
-        // otherwise keep it as-is (caller may expect relative handling)
         const url = /^https?:\/\//i.test(s.url) ? s.url : `https://${req.headers.host}${s.url}`;
         return {
           title: (s.title || '').split('⚡')[0].trim(),
@@ -74,7 +76,6 @@ const manifest = {
   description: 'Minimal Stremio addon',
   resources: ['catalog', 'stream'],
   types: ['movie'],
-  id: 'org.example.light',
   behaviorHints: { configurable: false }
 };
 
@@ -82,11 +83,11 @@ const builder = new addonBuilder(manifest);
 
 // example stream handler (adjust to your real implementation)
 builder.defineStreamHandler(async (args) => {
-  // implement lookup to return streams or empty array
   return { streams: [] };
 });
 
 // 5. Serve the addon using stremio-addon-sdk on the same express app
-serveHTTP(app, builder, { port: Number(PORT) });
+// serveHTTP will attach handlers to the provided express app and start listening on PORT
+serveHTTP(app, builder, { port: Number(PORT), host: HOST });
 
-console.log('Stremio addon + server starting on port', PORT);
+console.log('Stremio addon + server starting on', HOST + ':' + PORT);
