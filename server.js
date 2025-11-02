@@ -1,4 +1,3 @@
-// OFFICIAL LIGHT Stremio server + burger magic (updated)
 const express = require('express');
 const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
 const fs = require('fs');
@@ -10,10 +9,6 @@ const app = express();
 // Prefer STREMIO_PORT, then NODE_PORT, then default 11470
 const PORT = Number(process.env.STREMIO_PORT || process.env.NODE_PORT || 11470);
 const HOST = process.env.HOST || '127.0.0.1';
-
-// serveHTTP uses these values below
-serveHTTP(app, builder, { port: Number(PORT), host: HOST });
-console.log('Stremio addon + server starting on', HOST + ':' + PORT);
 
 // 0. helper: safe read
 function safeRead(filePath) {
@@ -72,7 +67,7 @@ app.use((req, res, next) => {
   return next();
 });
 
-// 4. Stremio addon: example minimal builder (adjust manifest as needed)
+// 4. Stremio addon: build manifest and builder BEFORE serveHTTP
 const manifest = {
   id: 'org.example.light',
   version: '1.0.0',
@@ -91,7 +86,6 @@ builder.defineStreamHandler(async (args) => {
 });
 
 // 5. Serve the addon using stremio-addon-sdk on the same express app
-// serveHTTP will attach handlers to the provided express app and start listening on PORT
-serveHTTP(app, builder, { port: Number(PORT), host: HOST });
+serveHTTP(app, builder, { port: PORT, host: HOST });
 
-console.log('Stremio addon + server starting on', HOST + ':' + PORT);
+console.log('Stremio addon + server starting on', `${HOST}:${PORT}`);
