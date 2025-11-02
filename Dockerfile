@@ -1,23 +1,28 @@
-FROM node:18-alpine
+FROM node:18
 
-# Install dependencies
-RUN apk add --no-cache git
+# Install Stremio Server (headless)
+RUN npm install -g stremio-server
 
-# Clone Stremio Web
-RUN git clone https://github.com/Stremio/stremio-web.git /app
+# Clone and build Stremio Web
+RUN git clone https://github.com/Stremio/stremio-web.git /web
+WORKDIR /web
+RUN npm install && npm run build
 
-WORKDIR /app
+# Install nginx to serve web + proxy to server
+RUN apt-get update && apt-get install -y nginx
 
-# Install packages
-RUN npm install
-
-# Build production version
-RUN npm run build
-
-# Install serve to host it
-RUN npm install -g serve
+# Configure nginx
+RUN echo 'server { \n\
+    listen 8080; \n\
+    location / { \n\
+        root /web/build; \n\
+        try_files $uri /index.html; \n\
+    } \n\
+    location /api { \n\
+        proxy_pass http://localhost:11470; \n\
+    } \n\
+}' > /etc/nginx/sites-available/default
 
 EXPOSE 8080
 
-# Serve the built app
-CMD ["serve", "-s", "build", "-l", "8080"]
+CMD service nginx start && stremio-server
