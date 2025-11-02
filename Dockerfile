@@ -2,7 +2,6 @@ FROM nginx:alpine
 
 WORKDIR /usr/share/nginx/html
 
-# Create Stremio wrapper with player injection
 RUN cat > index.html << 'EOF'
 <!DOCTYPE html>
 <html>
@@ -25,7 +24,6 @@ RUN cat > index.html << 'EOF'
 </html>
 EOF
 
-# Create mobile-optimized player selector
 RUN cat > player.js << 'EOF'
 (function() {
   'use strict';
@@ -43,7 +41,6 @@ RUN cat > player.js << 'EOF'
   let streamUrl = null;
   let selectorVisible = false;
 
-  // Create player selector UI (mobile optimized)
   function createSelector() {
     const overlay = document.createElement('div');
     overlay.id = 'player-overlay';
@@ -163,8 +160,6 @@ RUN cat > player.js << 'EOF'
     
     overlay.classList.add('show');
     selectorVisible = true;
-    
-    // Prevent body scroll
     document.body.style.overflow = 'hidden';
   }
 
@@ -179,7 +174,6 @@ RUN cat > player.js << 'EOF'
 
   window.closePlayerSelector = closeSelector;
 
-  // Monitor iframe for stream URLs
   let lastChecked = '';
   
   setInterval(() => {
@@ -187,14 +181,11 @@ RUN cat > player.js << 'EOF'
       const frame = document.getElementById('stremio-frame');
       if (!frame || !frame.contentWindow) return;
       
-      // Try to access iframe URL (same-origin only)
       const frameUrl = frame.contentWindow.location.href;
       
-      // Check if URL contains stream indicators
       if (frameUrl !== lastChecked) {
         lastChecked = frameUrl;
         
-        // Look for player route
         if (frameUrl.includes('/player/') || frameUrl.includes('stream')) {
           console.log('Stream detected:', frameUrl);
         }
@@ -204,7 +195,6 @@ RUN cat > player.js << 'EOF'
     }
   }, 1000);
 
-  // Listen for messages from Stremio iframe
   window.addEventListener('message', (event) => {
     if (event.data && event.data.streamUrl) {
       console.log('Stream URL received:', event.data.streamUrl);
@@ -212,7 +202,6 @@ RUN cat > player.js << 'EOF'
     }
   });
 
-  // Intercept link clicks for .m3u8, .mp4, etc.
   document.addEventListener('click', (e) => {
     const target = e.target.closest('a');
     if (target && target.href) {
@@ -224,7 +213,6 @@ RUN cat > player.js << 'EOF'
     }
   }, true);
 
-  // Create floating intercept button for manual triggering
   const floatingBtn = document.createElement('button');
   floatingBtn.innerHTML = '🎬';
   floatingBtn.style.cssText = `
@@ -248,7 +236,6 @@ RUN cat > player.js << 'EOF'
   };
   document.body.appendChild(floatingBtn);
 
-  // Show floating button after 3 seconds
   setTimeout(() => {
     floatingBtn.style.display = 'block';
   }, 3000);
@@ -257,7 +244,6 @@ RUN cat > player.js << 'EOF'
 })();
 EOF
 
-# Configure nginx
 RUN cat > /etc/nginx/conf.d/default.conf << 'EOF'
 server {
     listen 8080;
