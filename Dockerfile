@@ -92,6 +92,8 @@ EXPOSE 10000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://127.0.0.1:${STREMIO_PORT}/ || exit 1
 
+RUN apk add --no-cache nginx tini gettext curl
+
 # No start.sh. Template nginx, start node app (background), then nginx foreground under tini.
 CMD ["/sbin/tini", "--", "sh", "-c", "\
   envsubst '$PORT $RENDER_EXTERNAL_HOSTNAME $STREMIO_PORT' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && \
