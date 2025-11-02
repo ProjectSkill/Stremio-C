@@ -1,75 +1,32 @@
 #!/bin/sh
-set -eu
+set -e
+: "${PORT:=10000}"
+: "${STREMIO_PORT:=11470}"
+: "${RENDER_EXTERNAL_HOSTNAME:=localhost}"
 
-# runtime ports (use PORT injected by platform if present)
-NGINX_PORT=${PORT:-10000}
-NODE_PORT=${NODE_PORT:-11470}
+# render nginx config
+envsubst '\$PORT \$RENDER_EXTERNAL_HOSTNAME' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf
 
-# 1) Ensure nginx main config is minimal and includes conf.d inside http
-#    This prevents surprises where includes are nested or missing.
-cat > /etc/nginx/nginx.conf <<'NGINX_MAIN'
-user  nginx;
-worker_processes  auto;
-error_log  /var/log/nginx/error.log warn;
-pid        /var/run/nginx.pid;
+echo "Starting Node..."
+# start node in background and log its PID
+node server.js --transport="https://${RENDER_EXTERNAL_HOSTNAME}/manifest.json" &
+NODE_PID=$!
+echo "node_pid=${NODE_PID}"
 
-events {
-    worker_connections  1024;
-}
+# wait for node to accept connections on 127.0.0.1:11470
+echo "Waiting for Stremio to become healthy on 127.0.0.1:${STREMIO_PORT}..."
+# install curl in image or ensure it's available; this loop uses curl
+until curl -sS --fail "http://127.0.0.1:${STREMIO_PORT}/manifest.json" > /dev/null 2>&1; do
+  sleep 0.5
+  # if node died, show logs and exit
+  if ! kill -0 "$NODE_PID" 2>/dev/null; then
+    echo "Node process died; aborting"
+    ps aux
+    sleep 1
+    exit 1
+  fi
+done
+echo "Stremio ready, starting nginx"
 
-http {
-    include       /etc/nginx/mime.types;
-    default_type  application/octet-stream;
-
-    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
-                      '$status $body_bytes_sent "$http_referer" '
-                      '"$http_user_agent" "$http_x_forwarded_for"';
-
-    access_log  /var/log/nginx/access.log  main;
-    sendfile        on;
-    keepalive_timeout  65;
-
-    # include site configs
-    include /etc/nginx/conf.d/*.conf;
-}
-NGINX_MAIN
-
-# 2) Write the site config using runtime port and escaping nginx $-vars
-cat > /etc/nginx/conf.d/default.conf <<EOF
-server {
-  listen ${NGINX_PORT} default_server;
-  server_name _;
-
-  location / {
-    proxy_pass http://127.0.0.1:${NODE_PORT};
-    proxy_set_header Host \$host;
-    proxy_set_header X-Real-IP \$remote_addr;
-    proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
-    proxy_set_header X-Forwarded-Proto \$scheme;
-    proxy_buffering off;
-    proxy_http_version 1.1;
-    proxy_set_header Connection "";
-  }
-}
-EOF
-
-# 3) Ensure permissions (nginx in alpine ships with nginx user)
-chown root:root /etc/nginx/nginx.conf /etc/nginx/conf.d/default.conf || true
-chmod 644 /etc/nginx/nginx.conf /etc/nginx/conf.d/default.conf || true
-
-# 4) Start the Node app in background (must listen on NODE_PORT and 0.0.0.0)
-cd /app
-nohup sh -c "NODE_PORT=${NODE_PORT} node server.js --port=${NODE_PORT}" > /proc/1/fd/1 2>/proc/1/fd/2 &
-
-# 5) Validate generated nginx config and show failures (helps debug)
-echo "Running nginx -t ..."
-nginx -t || {
-  echo "nginx -t failed; showing /etc/nginx/nginx.conf and /etc/nginx/conf.d/default.conf"
-  sed -n '1,240p' /etc/nginx/nginx.conf || true
-  echo "----"
-  sed -n '1,240p' /etc/nginx/conf.d/default.conf || true
-  exit 1
-}
-
-# 6) Start nginx in foreground (tini is PID 1 and will forward signals)
+# start nginx in foreground
 nginx -g 'daemon off;'
