@@ -1,21 +1,25 @@
-# builder
+# builder: install deps and build app
 FROM node:20-alpine AS builder
 WORKDIR /app
+# copy package files first for cached installs
 COPY package.json package-lock.json* ./
-RUN npm i --package-lock-only && npm ci --omit=dev
+RUN npm ci --omit=dev
+# copy the rest of the project (server.js, inject.js, etc.)
 COPY . .
-RUN npm run build || true
+# optional build step if your project has one
+RUN npm run build --if-present
 
-# final/runtime
+# runtime image
 FROM node:20-alpine
-# install runtime packages first
+# install runtime packages (nginx, tiny init, envsubst provider, curl)
 RUN apk add --no-cache nginx tini gettext curl \
   && mkdir -p /etc/nginx /etc/nginx/conf.d /run/nginx /var/log/nginx /var/cache/nginx
 
 WORKDIR /app
+# copy app from builder
 COPY --from=builder /app /app
 
-# main nginx conf
+# main nginx.conf
 RUN cat > /etc/nginx/nginx.conf <<'EOF'
 user  nginx;
 worker_processes  auto;
@@ -32,7 +36,7 @@ http {
 }
 EOF
 
-# server template (rendered by Docker environment using envsubst at build time)
+# nginx server template (rendered at container start by server.js)
 RUN cat > /etc/nginx/conf.d/default.conf.template <<'EOF'
 server {
   listen ${PORT:-10000};
@@ -54,15 +58,11 @@ server {
 }
 EOF
 
-# Render config template into real config at container start using envsubst inside Dockerfile CMD via node app
 EXPOSE 10000
 
+# healthcheck uses curl against the internal stremio port
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
   CMD curl -f http://127.0.0.1:11470/ || exit 1
 
-COPY . .
-# make sure node files are executable where needed
-USER root
-
-# Use tini as PID1 and run node launcher (app.js) — no shell script required
-CMD ["/sbin/tini", "--", "node", "app.js"]
+# run node under tini (server.js contains launcher logic that renders nginx template and spawns nginx)
+CMD ["/sbin/tini", "--", "node", "server.js"]
