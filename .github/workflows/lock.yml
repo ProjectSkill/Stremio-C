@@ -1,5 +1,5 @@
 name: lock
-on: workflow_dispatch:
+on: workflows_dispatch:
 jobs:
   go:
     runs-on: ubuntu-latest
