@@ -2,10 +2,7 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package.json ./
-# If repo has no package-lock.json, create one from package.json, then install exact deps
-RUN npm i --package-lock-only
-COPY package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm i --package-lock-only && npm ci --omit=dev
 COPY . .
 RUN npm run build || true
 
