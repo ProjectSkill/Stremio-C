@@ -9,7 +9,11 @@ const app = express();
 
 // Prefer STREMIO_PORT, then NODE_PORT, then default 11470
 const PORT = Number(process.env.STREMIO_PORT || process.env.NODE_PORT || 11470);
-const HOST = process.env.HOST || '0.0.0.0';
+const HOST = process.env.HOST || '127.0.0.1';
+...
+// serveHTTP uses these values below
+serveHTTP(app, builder, { port: Number(PORT), host: HOST });
+console.log('Stremio addon + server starting on', HOST + ':' + PORT);
 
 // 0. helper: safe read
 function safeRead(filePath) {
