@@ -1,0 +1,34 @@
+name: CI Build and Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          # We removed the 'cache: npm' line from here because this
+          # workflow's job is to CREATE the lockfile, not use it for caching.
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Run Build
+        run: npm run build
+
+      - name: Commit and push package-lock.json
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "ci: Update package-lock.json and verify build"
+          file_pattern: "package-lock.json"
