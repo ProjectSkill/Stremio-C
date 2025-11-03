@@ -25,38 +25,43 @@ jobs:
 
       - name: Ensure clean state
         run: |
-          # remove any stale lockfile so install regenerates it
           rm -f package-lock.json npm-shrinkwrap.json yarn.lock
 
-      - name: Install dependencies and generate lockfile
+      - name: Validate package.json presence
         run: |
-          # try a reproducible install; fall back to install if ci fails
-          if npm ci --omit=dev --prefer-offline; then
-            echo "npm ci succeeded"
-          else
-            echo "npm ci failed, running npm install"
-            npm install --omit=dev --no-audit --no-fund
+          if [ ! -f package.json ]; then
+            echo "package.json not found in repo root. Aborting."
+            ls -la
+            exit 1
           fi
-        env:
-          CI: true
+          echo "package.json found"
+      
+      - name: Generate package-lock only (no install)
+        run: |
+          # Generate a lockfile from package.json without installing packages
+          npm install --package-lock-only --no-audit --no-fund
+          echo "Created lockfile (if package.json declared dependencies)"
 
       - name: Show created files
         run: |
-          echo "Lockfiles present:"
+          echo "Lockfiles present (if any):"
           ls -la package-lock.json npm-shrinkwrap.json yarn.lock || true
 
-      - name: Commit and push package-lock.json if present
-        run: |
-          # configure git if there are changes
-          git add package-lock.json || true
-          if git diff --cached --name-only | grep -q '^package-lock.json$'; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git commit -m "chore: regenerate package-lock.json (via localt workflow)" || true
-            git push origin HEAD:${{ github.ref_name }}
-            echo "Pushed package-lock.json to branch ${{ github.ref_name }}"
-          else
-            echo "No package-lock.json to commit."
-          fi
+      - name: Commit and push package-lock.json if created
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -f package-lock.json ]; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            if git diff --cached --name-only | grep -q '^package-lock.json$'; then
+              git commit -m "chore: generate package-lock.json (via localt workflow)" || true
+              git push origin HEAD:${{ github.ref_name }}
+              echo "Pushed package-lock.json to branch ${{ github.ref_name }}"
+            else
+              echo "package-lock.json unchanged; nothing to commit."
+            fi
+          else
+            echo "No package-lock.json produced. Confirm package.json has dependencies."
+          fi
