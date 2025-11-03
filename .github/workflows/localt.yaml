@@ -1,99 +1,44 @@
-name: Create package-lock.json (force-patch stremio)
+name: Create package-lock.json
 
+# Allows you to run this manually from the Actions tab
 on:
   workflow_dispatch:
-
-permissions:
-  contents: write
 
 jobs:
   create-lockfile:
     runs-on: ubuntu-latest
+    
+    # Grants permission for the workflow to push code to your repo
+    permissions:
+      contents: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Setup Node.js 20
+      - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
 
-      - name: Verify package.json exists and print short preview
+      - name: Install dependencies & create lockfile
+        # --package-lock-only is fast and only generates the lockfile
+        run: npm install --package-lock-only
+
+      - name: Commit and push package-lock.json
         run: |
-          if [ ! -f package.json ]; then
-            echo "ERROR: package.json not found in repo root. Aborting."
-            ls -la
-            exit 1
-          fi
-          echo "package.json preview:"
-          sed -n '1,200p' package.json
-
-      - name: Force-replace stremio-addon-sdk version everywhere in package.json
-        run: |
-          python3 - <<'PY'
-import json,sys
-p='package.json'
-with open(p,'r',encoding='utf-8') as f:
-    data=json.load(f)
-changed=False
-for key in ('dependencies','devDependencies','optionalDependencies','peerDependencies'):
-    d=data.get(key)
-    if isinstance(d,dict) and 'stremio-addon-sdk' in d and d['stremio-addon-sdk'] != 'latest':
-        d['stremio-addon-sdk']='latest'
-        data[key]=d
-        changed=True
-if changed:
-    with open(p,'w',encoding='utf-8') as w:
-        json.dump(data,w,indent=2,ensure_ascii=False)
-print('changed' if changed else 'unchanged')
-PY
-
-      - name: Remove any leftover lockfiles and ensure clean state
-        run: |
-          rm -f package-lock.json npm-shrinkwrap.json yarn.lock || true
-          git status --porcelain || true
-
-      - name: Show patched package.json (if changed)
-        run: git --no-pager diff -- package.json || true
-
-      - name: Generate package-lock.json (package-lock-only) with verbose logging
-        run: |
-          set -o pipefail
-          npm --version
-          node --version
-          echo "Running npm install --package-lock-only --no-audit --no-fund"
-          npm install --package-lock-only --no-audit --no-fund 2>&1 | tee npm-install.log || ( echo "npm failed — showing log tail"; tail -n 300 npm-install.log ; exit 1 )
-
-      - name: Show produced lockfile
-        run: |
-          echo "Lockfiles in repo root:"
-          ls -la package-lock.json npm-shrinkwrap.json yarn.lock || true
-          head -n 80 package-lock.json || true
-
-      - name: Commit patched package.json and package-lock.json (if any)
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
+          # Configure git user for the commit
           git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          TO_COMMIT=()
-          if git status --porcelain | grep -q '^ M package.json' || git status --porcelain | grep -q '^?? package.json'; then
-            git add package.json
-            TO_COMMIT+=("package.json")
-          fi
-          if [ -f package-lock.json ]; then
-            git add package-lock.json
-            TO_COMMIT+=("package-lock.json")
-          fi
-
-          if [ ${#TO_COMMIT[@]} -gt 0 ]; then
-            git commit -m "chore: force-patch stremio-addon-sdk -> latest and generate package-lock (via workflow)" || true
-            git push origin HEAD:${{ github.ref_name }}
-            echo "Committed and pushed: ${TO_COMMIT[*]}"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          # Add the new file to staging
+          git add package-lock.json
+          
+          # Commit only if there are changes to the lockfile
+          if ! git diff --staged --quiet; then
+            echo "package-lock.json created/updated. Committing..."
+            git commit -m "build: generate package-lock.json"
+            git push
           else
-            echo "Nothing to commit."
+            echo "package-lock.json is already up-to-date."
           fi
