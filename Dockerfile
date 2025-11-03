@@ -1,48 +1,20 @@
-# ===================================================================
-# MULTI-STAGE DOCKERFILE - OPTIMIZED FOR SIZE & PERFORMANCE
-# ===================================================================
-
-# STAGE 1: BUILDER
-FROM node:18-alpine AS builder
-
-WORKDIR /app
-
-# Copy package files first (layer caching)
-COPY package*.json ./
-
-# Install dependencies (production only)
-RUN npm ci --production --silent
-
-# Copy app source for any build steps (if needed)
-COPY . .
-
-# STAGE 2: PRODUCTION RUNTIME
+# Use a lightweight Node.js image
 FROM node:18-alpine
 
-# Install dumb-init to handle signals properly
-RUN apk add --no-cache dumb-init
-
-# Create non-root user and group (single RUN to keep layers small)
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S -u 1001 -G nodejs nodejs
-
+# Set the working directory in the container
 WORKDIR /app
 
-# Copy node_modules from builder and set ownership
-COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
+# Copy the package.json and package-lock.json to leverage Docker layer caching
+COPY package*.json ./
 
-# Copy application code and set ownership
-COPY --chown=nodejs:nodejs server.js ./
+# Install the dependencies defined in package.json
+RUN npm install --production
 
-# Switch to non-root user
-USER nodejs
+# Copy the main application file
+COPY server.js .
 
-# Documentation port (actual port may come from env)
+# Expose the port the app runs on (Render will use this)
 EXPOSE 3000
 
-# Health check (uses localhost:3000/health)
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD sh -c 'node -e "require(\"http\").get(\"http://localhost:3000/health\", (r) => { process.exit(r.statusCode === 200 ? 0 : 1) })"'
-
-# Use dumb-init to run node for proper signal handling
-CMD ["dumb-init", "node", "server.js"]
+# The command to run when the container starts
+CMD [ "npm", "start" ]
