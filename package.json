@@ -1,5 +1,5 @@
 {
-  "name": "stremio-lite-single-file",
+  "name": "stremio-lite-final",
   "version": "1.0.0",
   "description": "A single-file Stremio addon and UI.",
   "main": "server.js",
