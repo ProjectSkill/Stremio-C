@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Pocket Launcher</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <button id="burger-menu" class="burger-menu" aria-label="Open Menu">&#9776;</button>
+        <h1>Pocket Launcher</h1>
+    </header>
+
+    <main id="main-content">
+        <p>Click the menu to start.</p>
+        <div id="stream-list-container"></div>
+    </main>
+
+    <!-- Modal for ID input -->
+    <div id="id-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h2>Enter Movie/Series ID</h2>
+            <form id="id-form">
+                <input type="text" id="imdb-id" placeholder="e.g., tt0111161" required>
+                <button type="submit">Fetch Streams</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Modal for player selection -->
+    <div id="player-modal" class="modal">
+        <div id="player-list" class="modal-content">
+             <span class="close-button">&times;</span>
+            <h2>Choose Player</h2>
+            <!-- Player buttons will be injected here by JavaScript -->
+        </div>
+    </div>
+
+    <div id="loader" class="loader-container" style="display: none;">
+        <div class="loader-box">
+            <div class="spinner"></div>
+            <p>Fetching...</p>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

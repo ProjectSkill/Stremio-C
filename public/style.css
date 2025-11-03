@@ -1,0 +1,142 @@
+/* Basic Reset & Body Styles */
+body, html {
+    margin: 0;
+    padding: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: #121212;
+    color: #e0e0e0;
+    -webkit-tap-highlight-color: transparent; /* Removes blue tap highlight on iOS */
+}
+
+/* Header */
+header {
+    display: flex;
+    align-items: center;
+    padding: 15px;
+    background-color: #1e1e1e;
+    border-bottom: 1px solid #333;
+}
+.burger-menu {
+    font-size: 24px;
+    background: none;
+    border: none;
+    color: #e0e0e0;
+    cursor: pointer;
+    margin-right: 15px;
+}
+header h1 {
+    font-size: 20px;
+    margin: 0;
+}
+
+/* Main Content */
+main {
+    padding: 20px;
+    text-align: center;
+}
+#stream-list-container button {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    margin-bottom: 10px;
+    background-color: #333;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    text-align: left;
+    cursor: pointer;
+}
+
+/* Modal Styles (for both ID input and Player selection) */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.7);
+    justify-content: center;
+    align-items: center;
+}
+.modal-content {
+    background-color: #2a2a2a;
+    margin: 15px;
+    padding: 20px;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 400px;
+    position: relative;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+.close-button {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 20px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+#id-form input {
+    width: 100%;
+    padding: 12px;
+    margin: 10px 0 20px 0;
+    border: 1px solid #444;
+    background-color: #333;
+    color: #fff;
+    border-radius: 8px;
+    box-sizing: border-box;
+}
+#id-form button, #player-list button {
+    width: 100%;
+    padding: 15px;
+    background-color: #007aff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+}
+#player-list button {
+    margin-bottom: 10px;
+}
+
+
+/* Loader/Fetching Indicator */
+.loader-container {
+    display: none; /* Hidden by default */
+    position: fixed;
+    z-index: 2000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+.loader-box {
+    background: #2a2a2a;
+    padding: 20px 30px;
+    border-radius: 10px;
+    text-align: center;
+}
+.spinner {
+    border: 4px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top: 4px solid #fff;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 10px auto;
+}
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
