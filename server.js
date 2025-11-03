@@ -27,7 +27,7 @@ const STREAM_SOURCES = [
 // STREMIO ADDON MANIFEST
 // ===================================================================
 // This manifest makes the backend compatible with Stremio clients.
-// The “stream” resource tells Stremio this addon provides streams.
+// The "stream" resource tells Stremio this addon provides streams.
 app.get('/manifest.json', (req, res) => {
     res.json({
         id: 'com.lightweight.stremio',
@@ -77,7 +77,7 @@ app.get('/stream/:type/:id', async (req, res) => {
 // SIMPLIFIED STREAM ENDPOINT FOR FRONTEND
 // ===================================================================
 // Route: /allstreams/:id
-// Purpose: Frontend-friendly endpoint that assumes “movie” type.
+// Purpose: Frontend-friendly endpoint that assumes "movie" type.
 app.get('/allstreams/:id', async (req, res) => {
     const { id } = req.params;
 
