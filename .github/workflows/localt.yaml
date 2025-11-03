@@ -1,4 +1,4 @@
-name: Create package-lock.json (patch stremio-sdk)
+name: Create package-lock.json (force-patch stremio)
 
 on:
   workflow_dispatch:
@@ -16,86 +16,84 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Node.js 20
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Validate package.json exists
+      - name: Verify package.json exists and print short preview
         run: |
           if [ ! -f package.json ]; then
             echo "ERROR: package.json not found in repo root. Aborting."
             ls -la
             exit 1
           fi
-          echo "package.json found"
+          echo "package.json preview:"
+          sed -n '1,200p' package.json
 
-      - name: Patch stremio-addon-sdk to a resolvable version
-        id: patch
+      - name: Force-replace stremio-addon-sdk version everywhere in package.json
         run: |
-          # If package.json has a stremio-addon-sdk entry with an unreachable version,
-          # replace its version with "latest" so install can proceed.
           python3 - <<'PY'
 import json,sys
 p='package.json'
 with open(p,'r',encoding='utf-8') as f:
     data=json.load(f)
-deps = data.get('dependencies') or {}
 changed=False
-if 'stremio-addon-sdk' in deps and deps['stremio-addon-sdk'] != 'latest':
-    deps['stremio-addon-sdk']='latest'
-    data['dependencies']=deps
-    changed=True
+for key in ('dependencies','devDependencies','optionalDependencies','peerDependencies'):
+    d=data.get(key)
+    if isinstance(d,dict) and 'stremio-addon-sdk' in d and d['stremio-addon-sdk'] != 'latest':
+        d['stremio-addon-sdk']='latest'
+        data[key]=d
+        changed=True
+if changed:
     with open(p,'w',encoding='utf-8') as w:
         json.dump(data,w,indent=2,ensure_ascii=False)
 print('changed' if changed else 'unchanged')
 PY
-          echo "patched=$?"
 
-      - name: Show package.json changes (if any)
-        run: |
-          git --no-pager diff -- package.json || true
-
-      - name: Ensure clean state and generate package-lock only
+      - name: Remove any leftover lockfiles and ensure clean state
         run: |
           rm -f package-lock.json npm-shrinkwrap.json yarn.lock || true
+          git status --porcelain || true
+
+      - name: Show patched package.json (if changed)
+        run: git --no-pager diff -- package.json || true
+
+      - name: Generate package-lock.json (package-lock-only) with verbose logging
+        run: |
           set -o pipefail
           npm --version
           node --version
-          echo "Running npm install --package-lock-only"
-          npm install --package-lock-only --no-audit --no-fund 2>&1 | tee npm-install.log || ( tail -n 200 npm-install.log ; exit 1 )
-          echo "Lockfile generation finished"
+          echo "Running npm install --package-lock-only --no-audit --no-fund"
+          npm install --package-lock-only --no-audit --no-fund 2>&1 | tee npm-install.log || ( echo "npm failed — showing log tail"; tail -n 300 npm-install.log ; exit 1 )
 
       - name: Show produced lockfile
         run: |
           echo "Lockfiles in repo root:"
           ls -la package-lock.json npm-shrinkwrap.json yarn.lock || true
-          echo "Preview package-lock head:"
-          head -n 40 package-lock.json || true
+          head -n 80 package-lock.json || true
 
-      - name: Commit patched package.json (if changed) and package-lock.json
+      - name: Commit patched package.json and package-lock.json (if any)
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Stage changes if present
-          CHANGED=false
-          if git status --porcelain | grep -q 'package.json'; then
+          TO_COMMIT=()
+          if git status --porcelain | grep -q '^ M package.json' || git status --porcelain | grep -q '^?? package.json'; then
             git add package.json
-            CHANGED=true
+            TO_COMMIT+=("package.json")
           fi
           if [ -f package-lock.json ]; then
             git add package-lock.json
-            CHANGED=true
+            TO_COMMIT+=("package-lock.json")
           fi
 
-          if [ "$CHANGED" = "true" ]; then
-            git commit -m "chore: patch stremio-addon-sdk -> latest and generate package-lock (via workflow)" || true
+          if [ ${#TO_COMMIT[@]} -gt 0 ]; then
+            git commit -m "chore: force-patch stremio-addon-sdk -> latest and generate package-lock (via workflow)" || true
             git push origin HEAD:${{ github.ref_name }}
-            echo "Committed and pushed changes."
+            echo "Committed and pushed: ${TO_COMMIT[*]}"
           else
-            echo "No changes to commit."
+            echo "Nothing to commit."
           fi
