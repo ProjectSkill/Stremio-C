@@ -7,12 +7,7 @@
     "start": "node server.js",
     "dev": "node server.js"
   },
-  "keywords": [
-    "stremio",
-    "streaming",
-    "iphone",
-    "render"
-  ],
+  "keywords": [ "stremio", "streaming", "iphone", "render" ],
   "author": "",
   "license": "MIT",
   "dependencies": {
