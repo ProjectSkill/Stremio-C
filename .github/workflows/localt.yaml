@@ -1,44 +1,47 @@
-name: Create package-lock.json
+name: localt
 
-# Allows you to run this manually from the Actions tab
 on:
   workflow_dispatch:
 
 jobs:
-  create-lockfile:
+  regen-lock:
     runs-on: ubuntu-latest
-    
-    # Grants permission for the workflow to push code to your repo
-    permissions:
-      contents: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Set up Node.js
+      - name: Use Node.js 20
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20'
+          cache: 'npm'
 
-      - name: Install dependencies & create lockfile
-        # --package-lock-only is fast and only generates the lockfile
-        run: npm install --package-lock-only
-
-      - name: Commit and push package-lock.json
+      - name: Display Node / npm versions
         run: |
-          # Configure git user for the commit
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          # Add the new file to staging
-          git add package-lock.json
-          
-          # Commit only if there are changes to the lockfile
-          if ! git diff --staged --quiet; then
-            echo "package-lock.json created/updated. Committing..."
-            git commit -m "build: generate package-lock.json"
-            git push
+          node -v
+          npm -v
+
+      - name: Install dependencies and regenerate package-lock
+        run: |
+          # ensure a clean install and regenerate lockfile
+          rm -f package-lock.json
+          npm ci --omit=dev || npm install --omit=dev --no-audit --no-fund
+
+      - name: Show diff
+        run: git --no-pager diff --name-only || true
+
+      - name: Commit and push package-lock.json if changed
+        run: |
+          if git status --porcelain | grep -q 'package-lock.json'; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add package-lock.json
+            git commit -m "chore: regenerate package-lock.json (via localt workflow)"
+            git push origin HEAD:${{ github.ref_name }}
           else
-            echo "package-lock.json is already up-to-date."
+            echo "No package-lock.json changes to commit."
           fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
