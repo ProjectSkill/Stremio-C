@@ -1,12 +1,18 @@
-# ────── LIGHTEST POSSIBLE ──────
-FROM node:20-alpine
-
+FROM node:20-alpine AS builder
 WORKDIR /app
-COPY server.js package*.json ./
+COPY . .
 RUN npm ci --omit=dev
 
-# Render gives us $PORT (10000). We obey.
-ENV PORT=10000
-EXPOSE 10000
+FROM nginx:alpine-slim
+COPY --from=builder /app /app
+RUN apk add --no-cache nodejs npm
 
-CMD ["node", "server.js", "--transport=https://$RENDER_EXTERNAL_HOSTNAME/manifest.json"]
+RUN cat > /etc/nginx/conf.d/default.conf << 'EOF'
+server {
+    listen 10000;
+    location / { proxy_pass http://127.0.0.1:11470; }
+}
+EOF
+
+EXPOSE 10000
+CMD cd /app && node server.js --transport=https://$RENDER_EXTERNAL_HOSTNAME/manifest.json & nginx -g 'daemon off;'
