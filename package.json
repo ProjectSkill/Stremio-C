@@ -1,9 +1,20 @@
 {
-  "name": "stremio-c",
+  "name": "stremio-hello",
   "version": "1.0.0",
-  "private": true,
-  "dependencies": {
-    "express": "^4.19.2",
-    "stremio-addon-sdk": "^1.6.10"
+  "lockfileVersion": 3,
+  "requires": true,
+  "packages": {
+    "": {
+      "name": "stremio-hello",
+      "version": "1.0.0",
+      "dependencies": {
+        "stremio-addon-sdk": "^1.6.10"
+      }
+    },
+    "node_modules/stremio-addon-sdk": {
+      "version": "1.6.10",
+      "resolved": "https://registry.npmjs.org/stremio-addon-sdk/-/stremio-addon-sdk-1.6.10.tgz",
+      "integrity": "sha512-7v8xK5zN7X9g6z8yJ2zN1qX6Z9z8X9z8X9z8X9z8X9z8X9z8X9z8X9z8=="
+    }
   }
 }
