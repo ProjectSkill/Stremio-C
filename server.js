@@ -125,10 +125,9 @@ function extractQuality(title) {
 // Route: /
 // Purpose: Serves the complete iPhone-optimized web interface
 app.get('/', (req, res) => {
-    // REVIEWER NOTE: This is a huge template literal. I've corrected syntax inside it.
-    res.send(`
-<!DOCTYPE html>
-<html lang="en">
+  res.send(`
+    <!DOCTYPE html>
+    <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
