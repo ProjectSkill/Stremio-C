@@ -18,30 +18,45 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Display Node / npm versions
+      - name: Show Node / npm versions
         run: |
           node -v
           npm -v
 
-      - name: Install dependencies and regenerate package-lock
+      - name: Ensure clean state
         run: |
-          # ensure a clean install and regenerate lockfile
-          rm -f package-lock.json
-          npm ci --omit=dev || npm install --omit=dev --no-audit --no-fund
+          # remove any stale lockfile so install regenerates it
+          rm -f package-lock.json npm-shrinkwrap.json yarn.lock
 
-      - name: Show diff
-        run: git --no-pager diff --name-only || true
-
-      - name: Commit and push package-lock.json if changed
+      - name: Install dependencies and generate lockfile
         run: |
-          if git status --porcelain | grep -q 'package-lock.json'; then
+          # try a reproducible install; fall back to install if ci fails
+          if npm ci --omit=dev --prefer-offline; then
+            echo "npm ci succeeded"
+          else
+            echo "npm ci failed, running npm install"
+            npm install --omit=dev --no-audit --no-fund
+          fi
+        env:
+          CI: true
+
+      - name: Show created files
+        run: |
+          echo "Lockfiles present:"
+          ls -la package-lock.json npm-shrinkwrap.json yarn.lock || true
+
+      - name: Commit and push package-lock.json if present
+        run: |
+          # configure git if there are changes
+          git add package-lock.json || true
+          if git diff --cached --name-only | grep -q '^package-lock.json$'; then
             git config user.name "github-actions[bot]"
             git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add package-lock.json
-            git commit -m "chore: regenerate package-lock.json (via localt workflow)"
+            git commit -m "chore: regenerate package-lock.json (via localt workflow)" || true
             git push origin HEAD:${{ github.ref_name }}
+            echo "Pushed package-lock.json to branch ${{ github.ref_name }}"
           else
-            echo "No package-lock.json changes to commit."
+            echo "No package-lock.json to commit."
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
