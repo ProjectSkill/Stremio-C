@@ -1,6 +1,5 @@
 name: Create package-lock.json
 
-# Allows you to run this manually from the Actions tab
 on:
   workflow_dispatch:
 
@@ -8,7 +7,6 @@ jobs:
   create-lockfile:
     runs-on: ubuntu-latest
     
-    # Grants permission for the workflow to push code to your repo
     permissions:
       contents: write
 
@@ -21,20 +19,18 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies & create lockfile
-        # --package-lock-only is fast and only generates the lockfile
-        run: npm install --package-lock-only
+      - name: Install dependencies and create lockfile
+        # This is the standard command. It will create node_modules AND package-lock.json.
+        run: npm install
 
       - name: Commit and push package-lock.json
         run: |
-          # Configure git user for the commit
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
-          # Add the new file to staging
           git add package-lock.json
           
-          # Commit only if there are changes to the lockfile
+          # This command checks if the lockfile was actually created or changed before trying to commit.
           if ! git diff --staged --quiet; then
             echo "package-lock.json created/updated. Committing..."
             git commit -m "build: generate package-lock.json"
