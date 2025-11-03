@@ -1,91 +1,21 @@
-const express = require('express');
-const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
-const fs = require('fs');
-const path = require('path');
-const fetch = globalThis.fetch || require('node-fetch');
+const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
 
-const app = express();
-
-// Prefer STREMIO_PORT, then NODE_PORT, then default 11470
-const PORT = Number(process.env.STREMIO_PORT || process.env.NODE_PORT || 11470);
-const HOST = process.env.HOST || '127.0.0.1';
-
-// 0. helper: safe read
-function safeRead(filePath) {
-  try { return fs.readFileSync(path.join(__dirname, filePath), 'utf8'); }
-  catch (e) { console.error('safeRead error', filePath, e); return ''; }
-}
-
-// 1. Serve burger script
-app.get('/inject.js', (req, res) => {
-  const js = safeRead('inject.js');
-  res.type('application/javascript; charset=utf-8').send(js);
+const builder = new addonBuilder({
+  id: "org.stremio.hello",
+  version: "1.0.0",
+  name: "🚀 Hello Stremio",
+  description: "Instant addon – shows Big Buck Bunny",
+  resources: ["stream"],
+  types: ["movie"],
+  idPrefixes: ["tt"]
 });
 
-// 2. All free streams endpoint
-app.get('/allstreams/:id', async (req, res) => {
-  try {
-    const upstream = `https://torrentio.strem.io/stream/movie/${encodeURIComponent(req.params.id)}.json`;
-    const r = await fetch(upstream);
-    if (!r.ok) {
-      console.error('upstream error', r.status, upstream);
-      return res.json([]);
-    }
-    const data = await r.json();
-    const free = (data.streams || [])
-      .filter(s => s && s.url && !s.url.includes('debrid'))
-      .slice(0, 15)
-      .map((s) => {
-        const url = /^https?:\/\//i.test(s.url) ? s.url : `https://${req.headers.host}${s.url}`;
-        return {
-          title: (s.title || '').split('⚡')[0].trim(),
-          quality: (s.title && (s.title.match(/\d{3,4}p/) || [])[0]) || 'SD',
-          url
-        };
-      });
-    res.type('application/json; charset=utf-8').json(free);
-  } catch (err) {
-    console.error('allstreams error', err);
-    res.json([]);
+builder.defineStreamHandler(args => {
+  if (args.id === "tt1254207") {
+    return Promise.resolve({ streams: [{ url: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", title: "Big Buck Bunny 1080p" }] });
   }
+  return Promise.resolve({ streams: [] });
 });
 
-// 3. Inject burger on certain HTML requests (keep minimal and safe)
-app.use((req, res, next) => {
-  if (req.path.endsWith('.html') || req.path === '/') {
-    const html = `<!doctype html>
-<html>
-<head>
-  <meta charset="utf-8"/>
-  <script>location.href='https://web.stremio.com' + location.search</script>
-  <script src="/inject.js"></script>
-</head>
-<body></body>
-</html>`;
-    return res.type('text/html; charset=utf-8').send(html);
-  }
-  return next();
-});
-
-// 4. Stremio addon: build manifest and builder BEFORE serveHTTP
-const manifest = {
-  id: 'org.example.light',
-  version: '1.0.0',
-  name: 'Light add-on',
-  description: 'Minimal Stremio addon',
-  resources: ['catalog', 'stream'],
-  types: ['movie'],
-  behaviorHints: { configurable: false }
-};
-
-const builder = new addonBuilder(manifest);
-
-// example stream handler (adjust to your real implementation)
-builder.defineStreamHandler(async (args) => {
-  return { streams: [] };
-});
-
-// 5. Serve the addon using stremio-addon-sdk on the same express app
-serveHTTP(app, builder, { port: PORT, host: HOST });
-
-console.log('Stremio addon + server starting on', `${HOST}:${PORT}`);
+serveHTTP(builder.getInterface(), { port: process.env.PORT || 7000 });
+console.log("Stremio addon running → add https://YOUR-USERNAME.github.io/YOUR-REPO/manifest.json");
