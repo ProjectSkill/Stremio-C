@@ -19,8 +19,11 @@ jobs:
         with:
           node-version: 20
 
+      # THIS IS THE NEW DEBUGGING STEP
+      - name: DEBUG - Show package.json content
+        run: cat package.json
+
       - name: Install dependencies and create lockfile
-        # This is the standard command. It will create node_modules AND package-lock.json.
         run: npm install
 
       - name: Commit and push package-lock.json
@@ -30,7 +33,6 @@ jobs:
           
           git add package-lock.json
           
-          # This command checks if the lockfile was actually created or changed before trying to commit.
           if ! git diff --staged --quiet; then
             echo "package-lock.json created/updated. Committing..."
             git commit -m "build: generate package-lock.json"
