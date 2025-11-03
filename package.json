@@ -1,13 +1,24 @@
 {
-  "name": "stremio-pocket-launcher",
+  "name": "stremio-lite-backend",
   "version": "1.0.0",
-  "description": "A lightweight Stremio addon with a custom frontend for mobile.",
+  "description": "Lightweight Stremio backend optimized for iPhone and Render deployment",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "node server.js"
   },
+  "keywords": [
+    "stremio",
+    "streaming",
+    "iphone",
+    "render"
+  ],
+  "author": "",
+  "license": "MIT",
   "dependencies": {
     "express": "^4.18.2",
-    "stremio-addon-sdk": "^1.6.8"
+    "node-fetch": "^2.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
-}
