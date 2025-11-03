@@ -1,10 +1,13 @@
-name: localt
+name: Create package-lock.json
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  regen-lock:
+  create-lockfile:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -12,56 +15,58 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Use Node.js 20
+      - name: Set up Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
 
-      - name: Show Node / npm versions
-        run: |
-          node -v
-          npm -v
-
-      - name: Ensure clean state
-        run: |
-          rm -f package-lock.json npm-shrinkwrap.json yarn.lock
-
-      - name: Validate package.json presence
+      - name: Validate package.json exists
         run: |
           if [ ! -f package.json ]; then
-            echo "package.json not found in repo root. Aborting."
+            echo "ERROR: package.json not found in repo root. Aborting."
             ls -la
             exit 1
           fi
-          echo "package.json found"
-      
-      - name: Generate package-lock only (no install)
-        run: |
-          # Generate a lockfile from package.json without installing packages
-          npm install --package-lock-only --no-audit --no-fund
-          echo "Created lockfile (if package.json declared dependencies)"
+          cat package.json | sed -n '1,200p'
 
-      - name: Show created files
+      - name: Install dependencies & create package-lock.json (package-lock-only)
         run: |
-          echo "Lockfiles present (if any):"
+          # Ensure any old lockfiles are removed so npm generates a fresh one
+          rm -f package-lock.json npm-shrinkwrap.json yarn.lock || true
+          # Generate package-lock.json from package.json
+          npm install --package-lock-only --no-audit --no-fund
+          echo "Generated package-lock.json (if package.json declared dependencies)."
+        env:
+          CI: true
+
+      - name: Show produced lockfile (if present)
+        run: |
+          echo "Lockfiles in repo root:"
           ls -la package-lock.json npm-shrinkwrap.json yarn.lock || true
 
-      - name: Commit and push package-lock.json if created
+      - name: Commit and push package-lock.json if created/changed
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Configure git user
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          # Stage lockfile if present
           if [ -f package-lock.json ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
             git add package-lock.json
-            if git diff --cached --name-only | grep -q '^package-lock.json$'; then
-              git commit -m "chore: generate package-lock.json (via localt workflow)" || true
-              git push origin HEAD:${{ github.ref_name }}
-              echo "Pushed package-lock.json to branch ${{ github.ref_name }}"
-            else
-              echo "package-lock.json unchanged; nothing to commit."
-            fi
           else
-            echo "No package-lock.json produced. Confirm package.json has dependencies."
+            echo "No package-lock.json produced; nothing to commit."
+            exit 0
           fi
+
+          # Only commit & push when there are staged changes
+          if git diff --cached --quiet; then
+            echo "package-lock.json unchanged; nothing to commit."
+            exit 0
+          fi
+
+          # Commit and push back to the same branch that triggered this workflow
+          git commit -m "chore: generate package-lock.json (via workflow)"
+          # Push using the checkout token; push to the same ref that triggered the run
+          git push origin HEAD:${{ github.ref_name }}
