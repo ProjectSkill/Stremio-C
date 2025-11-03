@@ -1,37 +1,99 @@
-# --- Stage 1: Build the Node.js Backend ---
-FROM node:20-alpine AS backend-builder
+# ===================================================================
+
+# MULTI-STAGE DOCKERFILE - OPTIMIZED FOR SIZE & PERFORMANCE
+
+# ===================================================================
+
+# Stage 1: Dependencies installation
+
+# Stage 2: Production runtime with minimal footprint
+
+# ===================================================================
+
+# ===================================================================
+
+# STAGE 1: BUILDER
+
+# ===================================================================
+
+# Purpose: Install dependencies in a temporary layer
+
+# Why separate stage?: Keeps final image small by excluding build tools
+
+FROM node:18-alpine AS builder
+
+# Set working directory
+
 WORKDIR /app
+
+# Copy package files first (Docker layer caching optimization)
+
+# If package.json doesn’t change, this layer is cached
+
 COPY package*.json ./
-# We install all dependencies now, including dev ones if we had them
-RUN npm install
-COPY . .
-# This is a placeholder for a real build step if you ever add one
-# RUN npm run build
 
-# --- Stage 2: Production Environment ---
-# We start from a clean, lean Nginx image
-FROM nginx:alpine
+# Install dependencies
 
-# Remove the default Nginx configuration
-RUN rm /etc/nginx/conf.d/default.conf
+# –production flag excludes devDependencies for smaller size
 
-# Copy our custom Nginx configuration file into the container
-COPY nginx.conf /etc/nginx/conf.d/
+RUN npm ci –production –silent
 
-# Copy the built frontend files from our 'public' directory to the Nginx web root
-COPY --from=backend-builder /app/public /usr/share/nginx/html
+# ===================================================================
 
-# Create a directory for the Node.js backend to live in
-WORKDIR /app/backend
+# STAGE 2: PRODUCTION RUNTIME
 
-# Copy the backend code and its dependencies from the first stage
-COPY --from=backend-builder /app/node_modules ./node_modules
-COPY --from=backend-builder /app/package.json .
-COPY --from=backend-builder /app/server.js .
+# ===================================================================
 
-# Expose port 10000, which is the port our Nginx server is listening on
-EXPOSE 10000
+# Purpose: Minimal final image with only runtime dependencies
 
-# This is the command that starts EVERYTHING.
-# It starts the Node.js backend API in the background (&) and then starts the Nginx server in the foreground.
-CMD ["/bin/sh", "-c", "node /app/backend/server.js & nginx -g 'daemon off;'"]
+# Alpine base: ~5MB vs standard Node image ~900MB
+
+FROM node:18-alpine
+
+# Install dumb-init to handle signals properly in Docker
+
+# dumb-init ensures graceful shutdowns when Render stops the container
+
+RUN apk add –no-cache dumb-init
+
+# Create non-root user for security best practices
+
+# Running as root in containers is a security risk
+
+RUN addgroup -g 1001 -S nodejs &&   
+adduser -S nodejs -u 1001
+
+# Set working directory
+
+WORKDIR /app
+
+# Copy dependencies from builder stage
+
+COPY –from=builder –chown=nodejs:nodejs /app/node_modules ./node_modules
+
+# Copy application code
+
+COPY –chown=nodejs:nodejs server.js ./
+
+# Switch to non-root user
+
+USER nodejs
+
+# Expose port (Render will assign this dynamically)
+
+# This is documentation only; actual port comes from process.env.PORT
+
+EXPOSE 3000
+
+# Health check for Docker (Render uses its own health checks)
+
+# This helps Docker know if container is healthy
+
+HEALTHCHECK –interval=30s –timeout=3s –start-period=5s –retries=3   
+CMD node -e “require(‘http’).get(‘http://localhost:3000/health’, (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})”
+
+# Use dumb-init to run node
+
+# dumb-init properly handles SIGTERM for graceful shutdowns
+
+CMD [“dumb-init”, “node”, “server.js”]
