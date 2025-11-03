@@ -1,14 +1,8 @@
 {
-  "name": "stremio-c",
+  "name": "stremio-burger",
   "version": "1.0.0",
-  "description": "Hello world Stremio addon – works instantly",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
   "dependencies": {
-    "stremio-addon-sdk": "^1.6.10"
-  },
-  "keywords": ["stremio"],
-  "private": true
+    "express": "^4.18.2",
+    "stremio-addon-sdk": "^1.2.0"
+  }
 }
