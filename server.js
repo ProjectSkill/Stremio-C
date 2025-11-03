@@ -124,9 +124,11 @@ function extractQuality(title) {
 // ===================================================================
 // Route: /
 // Purpose: Serves the complete iPhone-optimized web interface
-app.get('/', (req, res) => {
-  res.send(`
-    <!DOCTYPE html>
+res.send(`
+  <html>
+    <body>Hello</body>
+  </html>
+`);
     <html lang="en">
 <head>
   <meta charset="UTF-8">
