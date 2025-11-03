@@ -1,5 +1,5 @@
 {
-  "name": "stremio-hello",
+  "name": "stremio-c",
   "version": "1.0.0",
   "description": "Hello world Stremio addon – works instantly",
   "main": "server.js",
