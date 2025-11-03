@@ -8,7 +8,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install the dependencies defined in package.json
-RUN npm install --production
+RUN npm ci --omit=dev --no-audit --prefer-offline
+
 
 # Copy the main application file
 COPY server.js .
