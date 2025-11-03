@@ -1,58 +1,38 @@
 # ===================================================================
-
-# GIT IGNORE FILE
-
+# DOCKER IGNORE FILE
+# ===================================================================
+# Purpose: Exclude files from Docker build context
+# Why?: Speeds up builds and reduces image size
 # ===================================================================
 
-# Purpose: Exclude files from version control
-
-# ===================================================================
-
-# Dependencies
-
+# Node modules (will be installed fresh in container)
 node_modules/
+npm-debug.log
 
-# Environment variables
+# Git files
+.git/
+.gitignore
 
+# Environment files
 .env
 .env.local
-.env.production
-
-# Logs
-
-logs/
-*.log
-npm-debug.log*
 
 # OS files
-
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
 
 # IDE files
-
 .vscode/
 .idea/
 *.swp
 *.swo
-*~
 
-# Testing
+# Documentation
+README.md
+LICENSE
+docs/
 
+# Test files
+test/
+*.test.js
 coverage/
-.nyc_output/
-
-# Build files
-
-dist/
-build/
-
-# Temporary files
-
-tmp/
-temp/
