@@ -1,14 +1,21 @@
 // ===================================================================
 // STREMIO LIGHTWEIGHT BACKEND - OPTIMIZED FOR iPHONE + RENDER
 // ===================================================================
+// Purpose: Minimal Stremio addon that fetches streams and provides
+// a mobile-first UI for easy stream copying and player launching.
+// Architecture: Single-file Express server with inline HTML/CSS/JS
+// ===================================================================
+
 const express = require(‘express’);
 const fetch = require(‘node-fetch’);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ===================================================================
-// CONFIGURATION - Stream Sources
+// CONFIGURATION
 // ===================================================================
+// These are popular Stremio community addons that provide streams.
+// You can modify this list based on your preferred sources.
 const STREAM_SOURCES = [
 ‘https://torrentio.strem.fun’,
 ‘https://v3-cinemeta.strem.io’
@@ -17,6 +24,8 @@ const STREAM_SOURCES = [
 // ===================================================================
 // STREMIO ADDON MANIFEST
 // ===================================================================
+// This manifest makes the backend compatible with Stremio clients.
+// The “stream” resource tells Stremio this addon provides streams.
 app.get(’/manifest.json’, (req, res) => {
 res.json({
 id: ‘com.lightweight.stremio’,
@@ -33,10 +42,16 @@ catalogs: []
 // ===================================================================
 // STREAM FETCHING ENDPOINT
 // ===================================================================
+// Route: /stream/:type/:id
+// Purpose: Fetches streams from configured sources and returns them.
+// Example: /stream/movie/tt0111161 fetches Shawshank Redemption streams
+//
+// Integration: Called by the frontend via /allstreams/:id for simplicity
 app.get(’/stream/:type/:id’, async (req, res) => {
 const { type, id } = req.params;
 
 try {
+// Fetch from all configured stream sources in parallel
 const streamPromises = STREAM_SOURCES.map(source =>
 fetch(`${source}/stream/${type}/${id}.json`)
 .then(r => r.ok ? r.json() : null)
@@ -46,10 +61,11 @@ fetch(`${source}/stream/${type}/${id}.json`)
 ```
 const results = await Promise.all(streamPromises);
 
+// Combine all streams from all sources
 const allStreams = results
   .filter(r => r && r.streams)
   .flatMap(r => r.streams)
-  .filter(s => s.url || s.infoHash);
+  .filter(s => s.url || s.infoHash); // Only valid streams
 
 res.json({ streams: allStreams });
 ```
@@ -63,6 +79,11 @@ res.status(500).json({ streams: [] });
 // ===================================================================
 // SIMPLIFIED STREAM ENDPOINT FOR FRONTEND
 // ===================================================================
+// Route: /allstreams/:id
+// Purpose: Frontend-friendly endpoint that assumes “movie” type.
+// Returns: Array of stream objects with title and URL
+//
+// Why separate?: Cleaner frontend code, easier URL construction
 app.get(’/allstreams/:id’, async (req, res) => {
 const { id } = req.params;
 
@@ -76,6 +97,7 @@ fetch(`${source}/stream/movie/${id}.json`)
 ```
 const results = await Promise.all(streamPromises);
 
+// Transform streams into simpler format for frontend
 const allStreams = results
   .filter(r => r && r.streams)
   .flatMap(r => r.streams)
@@ -85,7 +107,7 @@ const allStreams = results
     url: s.url,
     quality: extractQuality(s.title || s.name || '')
   }))
-  .slice(0, 50);
+  .slice(0, 50); // Limit to 50 streams for performance
 
 res.json(allStreams);
 ```
@@ -99,14 +121,24 @@ res.status(500).json([]);
 // ===================================================================
 // QUALITY EXTRACTION HELPER
 // ===================================================================
+// Purpose: Parse stream title to extract quality (480p, 720p, 1080p, etc)
+// Used by: /allstreams endpoint to provide quality info to frontend
 function extractQuality(title) {
 const qualityMatch = title.match(/(\d{3,4}p)/i);
 return qualityMatch ? qualityMatch[1] : ‘SD’;
 }
 
 // ===================================================================
-// MAIN WEB UI - ALL ${} ESCAPED FOR BROWSER
+// MAIN WEB UI
 // ===================================================================
+// Route: /
+// Purpose: Serves the complete iPhone-optimized web interface
+// Features:
+// - Headless URL navigation (?id=tt0111161)
+// - Auto-fetch streams on load
+// - Click-to-copy stream URLs
+// - Auto-open player picker after copy
+// - Hamburger menu for player settings
 app.get(’/’, (req, res) => {
 res.send(`
 
@@ -118,11 +150,14 @@ res.send(`
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Stremio Lite</title>
   <style>
+    /* ============================================= */
+    /* GLOBAL STYLES - iOS OPTIMIZED */
+    /* ============================================= */
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      -webkit-tap-highlight-color: transparent;
+      -webkit-tap-highlight-color: transparent; /* Remove tap highlight on iOS */
     }
 
 ```
@@ -133,9 +168,13 @@ body {
   color: white;
   padding: 0;
   overflow-x: hidden;
+  /* Prevent iOS zoom on input focus */
   -webkit-text-size-adjust: 100%;
 }
 
+/* ============================================= */
+/* HEADER - Contains hamburger menu and title */
+/* ============================================= */
 .header {
   display: flex;
   align-items: center;
@@ -147,6 +186,7 @@ body {
   z-index: 100;
 }
 
+/* Hamburger button - leftmost position */
 .menu-btn {
   width: 40px;
   height: 40px;
@@ -167,6 +207,7 @@ body {
   background: rgba(255,255,255,0.2);
 }
 
+/* Hamburger icon lines */
 .menu-btn span {
   width: 20px;
   height: 2px;
@@ -175,6 +216,7 @@ body {
   transition: transform 0.3s;
 }
 
+/* Animated hamburger to X transformation */
 .menu-btn.active span:nth-child(1) {
   transform: translateY(7px) rotate(45deg);
 }
@@ -190,9 +232,12 @@ body {
   font-weight: 600;
 }
 
+/* ============================================= */
+/* SIDE MENU - Hamburger menu content */
+/* ============================================= */
 .side-menu {
   position: fixed;
-  left: -280px;
+  left: -280px; /* Hidden off-screen */
   top: 0;
   width: 280px;
   height: 100vh;
@@ -205,9 +250,10 @@ body {
 }
 
 .side-menu.open {
-  left: 0;
+  left: 0; /* Slide in */
 }
 
+/* Overlay behind menu when open */
 .menu-overlay {
   position: fixed;
   top: 0;
@@ -226,6 +272,7 @@ body {
   pointer-events: all;
 }
 
+/* Menu section styling */
 .menu-section {
   margin-bottom: 30px;
 }
@@ -238,6 +285,7 @@ body {
   letter-spacing: 1px;
 }
 
+/* Player option buttons in menu */
 .player-option {
   background: rgba(255,255,255,0.1);
   border: 2px solid transparent;
@@ -276,12 +324,16 @@ body {
   border-color: #667eea;
 }
 
+/* ============================================= */
+/* MAIN CONTAINER - Content area */
+/* ============================================= */
 .container {
   padding: 20px;
   max-width: 800px;
   margin: 0 auto;
 }
 
+/* Input section for manual ID entry */
 .input-section {
   background: rgba(255,255,255,0.1);
   backdrop-filter: blur(10px);
@@ -295,6 +347,7 @@ body {
   gap: 10px;
 }
 
+/* Text input for IMDb ID */
 #movieId {
   flex: 1;
   padding: 15px;
@@ -302,7 +355,7 @@ body {
   border-radius: 12px;
   background: rgba(0,0,0,0.3);
   color: white;
-  font-size: 16px;
+  font-size: 16px; /* Prevents iOS zoom on focus */
   outline: none;
   transition: border-color 0.3s;
 }
@@ -315,6 +368,7 @@ body {
   color: rgba(255,255,255,0.5);
 }
 
+/* Fetch button */
 .btn {
   padding: 15px 30px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -336,6 +390,9 @@ body {
   cursor: not-allowed;
 }
 
+/* ============================================= */
+/* LOADING INDICATOR - Small box during fetch */
+/* ============================================= */
 .loading {
   display: none;
   background: rgba(0,0,0,0.9);
@@ -353,6 +410,7 @@ body {
   animation: fadeIn 0.3s;
 }
 
+/* Spinner animation */
 .spinner {
   width: 40px;
   height: 40px;
@@ -372,11 +430,15 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* ============================================= */
+/* STREAMS LIST - Clickable stream items */
+/* ============================================= */
 #streamsList {
   display: grid;
   gap: 12px;
 }
 
+/* Individual stream item */
 .stream-item {
   background: rgba(255,255,255,0.1);
   backdrop-filter: blur(10px);
@@ -394,11 +456,13 @@ body {
   background: rgba(255,255,255,0.15);
 }
 
+/* Copied state - visual feedback */
 .stream-item.copied {
   border-color: #10b981;
   background: rgba(16,185,129,0.2);
 }
 
+/* Copy indicator that appears on click */
 .stream-item .copy-indicator {
   position: absolute;
   top: 50%;
@@ -418,10 +482,11 @@ body {
   transform: translateY(-50%) scale(1);
 }
 
+/* Stream title and quality badge */
 .stream-title {
   font-weight: 600;
   margin-bottom: 5px;
-  padding-right: 80px;
+  padding-right: 80px; /* Space for copy indicator */
 }
 
 .stream-quality {
@@ -433,9 +498,12 @@ body {
   color: rgba(255,255,255,0.8);
 }
 
+/* ============================================= */
+/* PLAYER PICKER MODAL - Appears after copy */
+/* ============================================= */
 .player-picker {
   position: fixed;
-  bottom: -100%;
+  bottom: -100%; /* Hidden below screen */
   left: 0;
   width: 100%;
   background: rgba(0,0,0,0.95);
@@ -448,7 +516,7 @@ body {
 }
 
 .player-picker.show {
-  bottom: 0;
+  bottom: 0; /* Slide up */
 }
 
 .player-picker h3 {
@@ -457,6 +525,7 @@ body {
   text-align: center;
 }
 
+/* Player buttons grid */
 .player-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -482,6 +551,7 @@ body {
   background: rgba(255,255,255,0.2);
 }
 
+/* Cancel button */
 .cancel-btn {
   width: 100%;
   padding: 15px;
@@ -493,6 +563,7 @@ body {
   cursor: pointer;
 }
 
+/* Empty state message */
 .empty-state {
   text-align: center;
   padding: 60px 20px;
@@ -504,6 +575,9 @@ body {
   margin-bottom: 10px;
 }
 
+/* ============================================= */
+/* RESPONSIVE DESIGN - Desktop adaptations */
+/* ============================================= */
 @media (min-width: 768px) {
   .player-grid {
     grid-template-columns: repeat(3, 1fr);
@@ -519,6 +593,9 @@ body {
   </style>
 </head>
 <body>
+  <!-- ============================================= -->
+  <!-- HEADER SECTION -->
+  <!-- ============================================= -->
   <div class="header">
     <button class="menu-btn" id="menuBtn">
       <span></span>
@@ -527,6 +604,12 @@ body {
     </button>
     <h1>🎬 Stremio Lite</h1>
   </div>
+
+  <!-- ============================================= -->
+
+  <!-- HAMBURGER SIDE MENU -->
+
+  <!-- ============================================= -->
 
   <div class="menu-overlay" id="menuOverlay"></div>
   <div class="side-menu" id="sideMenu">
@@ -566,7 +649,14 @@ body {
 
   </div>
 
+  <!-- ============================================= -->
+
+  <!-- MAIN CONTENT CONTAINER -->
+
+  <!-- ============================================= -->
+
   <div class="container">
+    <!-- Input section for manual ID entry -->
     <div class="input-section">
       <div class="input-group">
         <input 
@@ -581,15 +671,23 @@ body {
     </div>
 
 ```
+<!-- Loading indicator -->
 <div class="loading" id="loading">
   <div class="spinner"></div>
   <div>Fetching streams...</div>
 </div>
 
+<!-- Streams list container -->
 <div id="streamsList"></div>
 ```
 
   </div>
+
+  <!-- ============================================= -->
+
+  <!-- PLAYER PICKER MODAL -->
+
+  <!-- ============================================= -->
 
   <div class="player-picker" id="playerPicker">
     <h3>Choose Player</h3>
@@ -604,12 +702,19 @@ body {
   </div>
 
   <script>
+    // =========================================================
+    // STATE MANAGEMENT
+    // =========================================================
+    // Global state object to track current copied URL and settings
     let state = {
       copiedUrl: null,
       defaultPlayer: 'infuse',
       currentStreams: []
     };
 
+    // =========================================================
+    // DOM ELEMENT REFERENCES
+    // =========================================================
     const elements = {
       menuBtn: document.getElementById('menuBtn'),
       sideMenu: document.getElementById('sideMenu'),
@@ -622,12 +727,17 @@ body {
       cancelPicker: document.getElementById('cancelPicker')
     };
 
+    // =========================================================
+    // HAMBURGER MENU FUNCTIONALITY
+    // =========================================================
+    // Toggle side menu open/closed
     elements.menuBtn.addEventListener('click', () => {
       elements.menuBtn.classList.toggle('active');
       elements.sideMenu.classList.toggle('open');
       elements.menuOverlay.classList.toggle('active');
     });
 
+    // Close menu when clicking overlay
     elements.menuOverlay.addEventListener('click', closeMenu);
 
     function closeMenu() {
@@ -636,47 +746,71 @@ body {
       elements.menuOverlay.classList.remove('active');
     }
 
+    // =========================================================
+    // PLAYER SELECTION IN MENU
+    // =========================================================
+    // Handle clicking player options in hamburger menu
     document.querySelectorAll('.player-option').forEach(option => {
       option.addEventListener('click', function() {
+        // Remove selected state from all options
         document.querySelectorAll('.player-option').forEach(o => 
           o.classList.remove('selected')
         );
+        // Add selected state to clicked option
         this.classList.add('selected');
+        // Update default player in state
         state.defaultPlayer = this.dataset.player;
       });
     });
 
+    // =========================================================
+    // URL PARSING - HEADLESS NAVIGATION
+    // =========================================================
+    // Parse URL parameters to check for IMDb ID
+    // Example: ?id=tt0111161 will auto-fetch streams on load
     function getIdFromUrl() {
       const params = new URLSearchParams(window.location.search);
       return params.get('id');
     }
 
+    // Update URL without page reload (for better UX)
     function updateUrl(id) {
       const newUrl = id ? '?id=' + id : window.location.pathname;
       window.history.pushState({}, '', newUrl);
     }
 
+    // =========================================================
+    // STREAM FETCHING
+    // =========================================================
+    // Main function to fetch streams from backend
     async function fetchStreams(id) {
+      // Validate IMDb ID format
       if (!id || !id.startsWith('tt')) {
         alert('Please enter a valid IMDb ID (e.g., tt0111161)');
         return;
       }
 
+      // Show loading indicator
       elements.loading.classList.add('show');
       elements.streamsList.innerHTML = '';
       elements.fetchBtn.disabled = true;
 
       try {
+        // Fetch streams from backend
         const response = await fetch('/allstreams/' + id);
         const streams = await response.json();
 
+        // Store streams in state
         state.currentStreams = streams;
 
+        // Hide loading indicator
         elements.loading.classList.remove('show');
         elements.fetchBtn.disabled = false;
 
+        // Update URL to include ID
         updateUrl(id);
 
+        // Display streams or empty state
         if (streams.length > 0) {
           displayStreams(streams);
         } else {
@@ -690,6 +824,10 @@ body {
       }
     }
 
+    // =========================================================
+    // STREAM DISPLAY
+    // =========================================================
+    // Render streams list in the UI
     function displayStreams(streams) {
       elements.streamsList.innerHTML = streams.map((stream, index) => 
         '<div class="stream-item" data-url="' + stream.url + '" data-index="' + index + '">' +
@@ -699,11 +837,13 @@ body {
         '</div>'
       ).join('');
 
+      // Add click handlers to each stream item
       document.querySelectorAll('.stream-item').forEach(item => {
         item.addEventListener('click', handleStreamClick);
       });
     }
 
+    // Show message when no streams found
     function showEmptyState() {
       elements.streamsList.innerHTML = 
         '<div class="empty-state">' +
@@ -712,25 +852,38 @@ body {
         '</div>';
     }
 
+    // =========================================================
+    // STREAM CLICK HANDLER - COPY URL
+    // =========================================================
+    // Handle clicking a stream item:
+    // 1. Copy URL to clipboard
+    // 2. Show visual feedback
+    // 3. Open player picker
     async function handleStreamClick(e) {
       const item = e.currentTarget;
       const url = item.dataset.url;
 
+      // Copy URL to clipboard
       try {
         await navigator.clipboard.writeText(url);
         
+        // Store copied URL in state
         state.copiedUrl = url;
 
+        // Visual feedback - show "Copied!" indicator
         item.classList.add('copied');
         setTimeout(() => item.classList.remove('copied'), 2000);
 
+        // Auto-open player picker after short delay
         setTimeout(() => {
           elements.playerPicker.classList.add('show');
         }, 300);
 
       } catch (error) {
+        // Fallback for browsers that don't support clipboard API
         console.error('Copy failed:', error);
         
+        // Manual copy fallback for older iOS versions
         const textArea = document.createElement('textarea');
         textArea.value = url;
         textArea.style.position = 'fixed';
@@ -740,6 +893,7 @@ body {
         document.execCommand('copy');
         document.body.removeChild(textArea);
         
+        // Still show feedback and open picker
         state.copiedUrl = url;
         item.classList.add('copied');
         setTimeout(() => item.classList.remove('copied'), 2000);
@@ -749,6 +903,10 @@ body {
       }
     }
 
+    // =========================================================
+    // PLAYER PICKER FUNCTIONALITY
+    // =========================================================
+    // Handle player selection from the picker modal
     document.querySelectorAll('.player-btn').forEach(btn => {
       btn.addEventListener('click', function() {
         const player = this.dataset.player;
@@ -757,12 +915,18 @@ body {
       });
     });
 
+    // Close player picker
     elements.cancelPicker.addEventListener('click', closePlayerPicker);
 
     function closePlayerPicker() {
       elements.playerPicker.classList.remove('show');
     }
 
+    // =========================================================
+    // PLAYER URL SCHEMES
+    // =========================================================
+    // Open stream URL in selected player using custom URL schemes
+    // Each player has a specific URL scheme for deep linking
     function openInPlayer(player, url) {
       if (!url) return;
 
@@ -770,22 +934,27 @@ body {
 
       switch(player) {
         case 'infuse':
+          // Infuse uses x-callback-url for stream playback
           playerUrl = 'infuse://x-callback-url/play?url=' + encodeURIComponent(url);
           break;
         
         case 'nplayer':
+          // nPlayer accepts direct URL with custom scheme
           playerUrl = 'nplayer-' + url;
           break;
         
         case 'outplayer':
+          // OutPlayer uses simple custom scheme
           playerUrl = 'outplayer://' + encodeURIComponent(url);
           break;
         
         case 'vlc':
+          // VLC uses x-callback-url similar to Infuse
           playerUrl = 'vlc-x-callback://x-callback-url/stream?url=' + encodeURIComponent(url);
           break;
         
         case 'browser':
+          // Browser playback - open URL directly in new tab
           window.open(url, '_blank');
           return;
         
@@ -793,8 +962,11 @@ body {
           playerUrl = url;
       }
 
+      // Attempt to open player app
       window.location.href = playerUrl;
       
+      // Fallback: If player doesn't open (app not installed), 
+      // show helpful message after 2 seconds
       setTimeout(() => {
         const appInstalled = document.visibilityState === 'hidden';
         if (!appInstalled && player !== 'browser') {
@@ -805,11 +977,16 @@ body {
       }, 2000);
     }
 
+    // =========================================================
+    // EVENT LISTENERS - FETCH BUTTON & ENTER KEY
+    // =========================================================
+    // Fetch button click handler
     elements.fetchBtn.addEventListener('click', () => {
       const id = elements.movieId.value.trim();
       if (id) fetchStreams(id);
     });
 
+    // Enter key handler for input field
     elements.movieId.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
         const id = elements.movieId.value.trim();
@@ -817,6 +994,11 @@ body {
       }
     });
 
+    // =========================================================
+    // AUTO-FETCH ON PAGE LOAD (HEADLESS MODE)
+    // =========================================================
+    // Check if URL contains IMDb ID and auto-fetch streams
+    // This enables the headless workflow: just paste ID in URL bar
     window.addEventListener('DOMContentLoaded', () => {
       const urlId = getIdFromUrl();
       if (urlId) {
@@ -825,6 +1007,10 @@ body {
       }
     });
 
+    // =========================================================
+    // PWA-LIKE FEATURES (OPTIONAL ENHANCEMENTS)
+    // =========================================================
+    // Prevent pull-to-refresh on iOS for better app-like feel
     let touchStartY = 0;
     document.addEventListener('touchstart', (e) => {
       touchStartY = e.touches[0].clientY;
@@ -834,6 +1020,7 @@ body {
       const touchY = e.touches[0].clientY;
       const touchDiff = touchY - touchStartY;
       
+      // Prevent pull-to-refresh when at top of page
       if (touchDiff > 0 && window.scrollY === 0) {
         e.preventDefault();
       }
@@ -848,6 +1035,8 @@ body {
 // ===================================================================
 // HEALTH CHECK ENDPOINT
 // ===================================================================
+// Route: /health
+// Purpose: Render uses this to check if service is running
 app.get(’/health’, (req, res) => {
 res.json({ status: ‘ok’, uptime: process.uptime() });
 });
@@ -863,7 +1052,7 @@ res.status(404).json({ error: ‘Not found’ });
 // SERVER STARTUP
 // ===================================================================
 app.listen(PORT, () => {
-console.log(`🚀 Stremio Lite running on port ${PORT}`);
-console.log(`📱 Access at: http://localhost:${PORT}`);
-console.log(`🎬 Example: http://localhost:${PORT}?id=tt0111161`);
+console.log(’🚀 Stremio Lite running on port ’ + PORT);
+console.log(‘📱 Access at: http://localhost:’ + PORT);
+console.log(‘🎬 Example: http://localhost:’ + PORT + ‘?id=tt0111161’);
 });
