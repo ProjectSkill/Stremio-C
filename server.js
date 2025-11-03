@@ -1,21 +1,43 @@
-const { addonBuilder, serveHTTP } = require("stremio-addon-sdk");
+const { addonBuilder, serveHTTP } = require('stremio-addon-sdk');
+const express = require('express');
+const app = express(); // For custom endpoint
 
+// Stream handler: Auto-fetches all URLs (e.g., via scrapers; use node-fetch for real APIs)
 const builder = new addonBuilder({
-  id: "org.stremio.hello",
-  version: "1.0.0",
-  name: "🚀 Hello Stremio",
-  description: "Instant addon – shows Big Buck Bunny",
-  resources: ["stream"],
-  types: ["movie"],
-  idPrefixes: ["tt"]
+  id: 'custom-torrent-agg',
+  version: '1.0.0',
+  name: 'AutoFetch Streams',
+  description: 'Aggregates all free torrent streams',
+  resources: ['stream'],
+  types: ['movie', 'series'],
+  idPrefixes: ['tt', 'imdb:'] // Matches IMDb IDs
 });
 
-builder.defineStreamHandler(args => {
-  if (args.id === "tt1254207") {
-    return Promise.resolve({ streams: [{ url: "http://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4", title: "Big Buck Bunny 1080p" }] });
-  }
-  return Promise.resolve({ streams: [] });
+builder.defineStreamHandler((args) => {
+  if (args.type !== 'movie' && args.type !== 'series') return Promise.resolve({ streams: [] });
+
+  // Simulate fetch all URLs (replace with real scrapers like 1337x API or webtorrent)
+  const streams = [
+    { url: 'https://stremio-c.onrender.com', ... }, // Backend proxies torrent
+    { url: 'https://stremio-c.onrender.com/torrent2.mp4', title: '720p 1337x', ... },
+    // Add 5-10 more; use async fetch from torrent sites
+  ];
+  return Promise.resolve({ streams }); // Returns to Stremio for native playback
 });
 
-serveHTTP(builder.getInterface(), { port: process.env.PORT || 7000 });
-console.log("Stremio addon running → add https://YOUR-USERNAME.github.io/YOUR-REPO/manifest.json");
+// Crucial: Custom endpoint for stream list JSON (your "fetch all URLs")
+app.get('/allstreams/:id', (req, res) => {
+  const videoId = req.params.id;
+  // Fetch/logic same as stream handler, but return raw list
+  const streamList = [ // Mirror above
+    { id: 1, url: 'https://your-server.onrender.com/proxy/torrent1.mkv', title: '1080p YTS', quality: '1080p' },
+    { id: 2, url: 'https://your-server.onrender.com/proxy/torrent2.mp4', title: '720p 1337x', quality: '720p' }
+  ];
+  res.json(streamList); // iOS Shortcut fetches this
+});
+
+// Serve addon manifest + streams
+app.use('/manifest.json', (req, res) => res.json(builder.getManifest()));
+app.use(builder.middleware()); // Handles /stream requests
+
+module.exports = app; // For Render
