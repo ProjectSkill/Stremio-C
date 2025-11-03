@@ -9,7 +9,6 @@
 // REVIEWER NOTE: Fixed smart quotes on 'express' and 'node-fetch'.
 // 'node-fetch' is required for making HTTP requests from the backend.
 const express = require('express');
-const fetch = require('node-fetch');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
