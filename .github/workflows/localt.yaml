@@ -1,4 +1,4 @@
-name: Create package-lock.json
+name: Create package-lock.json (patch stremio-sdk)
 
 on:
   workflow_dispatch:
@@ -9,6 +9,7 @@ permissions:
 jobs:
   create-lockfile:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,46 +28,74 @@ jobs:
             ls -la
             exit 1
           fi
-          cat package.json | sed -n '1,200p'
+          echo "package.json found"
 
-      - name: Install dependencies & create package-lock.json (package-lock-only)
+      - name: Patch stremio-addon-sdk to a resolvable version
+        id: patch
         run: |
-          # Ensure any old lockfiles are removed so npm generates a fresh one
-          rm -f package-lock.json npm-shrinkwrap.json yarn.lock || true
-          # Generate package-lock.json from package.json
-          npm install --package-lock-only --no-audit --no-fund
-          echo "Generated package-lock.json (if package.json declared dependencies)."
-        env:
-          CI: true
+          # If package.json has a stremio-addon-sdk entry with an unreachable version,
+          # replace its version with "latest" so install can proceed.
+          python3 - <<'PY'
+import json,sys
+p='package.json'
+with open(p,'r',encoding='utf-8') as f:
+    data=json.load(f)
+deps = data.get('dependencies') or {}
+changed=False
+if 'stremio-addon-sdk' in deps and deps['stremio-addon-sdk'] != 'latest':
+    deps['stremio-addon-sdk']='latest'
+    data['dependencies']=deps
+    changed=True
+    with open(p,'w',encoding='utf-8') as w:
+        json.dump(data,w,indent=2,ensure_ascii=False)
+print('changed' if changed else 'unchanged')
+PY
+          echo "patched=$?"
 
-      - name: Show produced lockfile (if present)
+      - name: Show package.json changes (if any)
+        run: |
+          git --no-pager diff -- package.json || true
+
+      - name: Ensure clean state and generate package-lock only
+        run: |
+          rm -f package-lock.json npm-shrinkwrap.json yarn.lock || true
+          set -o pipefail
+          npm --version
+          node --version
+          echo "Running npm install --package-lock-only"
+          npm install --package-lock-only --no-audit --no-fund 2>&1 | tee npm-install.log || ( tail -n 200 npm-install.log ; exit 1 )
+          echo "Lockfile generation finished"
+
+      - name: Show produced lockfile
         run: |
           echo "Lockfiles in repo root:"
           ls -la package-lock.json npm-shrinkwrap.json yarn.lock || true
+          echo "Preview package-lock head:"
+          head -n 40 package-lock.json || true
 
-      - name: Commit and push package-lock.json if created/changed
+      - name: Commit patched package.json (if changed) and package-lock.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Configure git user
+          # Configure git
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          # Stage lockfile if present
+          # Stage changes if present
+          CHANGED=false
+          if git status --porcelain | grep -q 'package.json'; then
+            git add package.json
+            CHANGED=true
+          fi
           if [ -f package-lock.json ]; then
             git add package-lock.json
+            CHANGED=true
+          fi
+
+          if [ "$CHANGED" = "true" ]; then
+            git commit -m "chore: patch stremio-addon-sdk -> latest and generate package-lock (via workflow)" || true
+            git push origin HEAD:${{ github.ref_name }}
+            echo "Committed and pushed changes."
           else
-            echo "No package-lock.json produced; nothing to commit."
-            exit 0
+            echo "No changes to commit."
           fi
-
-          # Only commit & push when there are staged changes
-          if git diff --cached --quiet; then
-            echo "package-lock.json unchanged; nothing to commit."
-            exit 0
-          fi
-
-          # Commit and push back to the same branch that triggered this workflow
-          git commit -m "chore: generate package-lock.json (via workflow)"
-          # Push using the checkout token; push to the same ref that triggered the run
-          git push origin HEAD:${{ github.ref_name }}
