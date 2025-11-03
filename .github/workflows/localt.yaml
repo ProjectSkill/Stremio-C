@@ -1,42 +1,31 @@
-name: Create package-lock.json
+name: Generate package-lock.json
 
+# This line allows you to run this workflow manually from the Actions tab
 on:
   workflow_dispatch:
 
 jobs:
   create-lockfile:
     runs-on: ubuntu-latest
-    
-    permissions:
-      contents: write
 
     steps:
+      # Step 1: Check out your repository's code
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
+      # Step 2: Set up Node.js so we can use npm
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20' # Use a recent LTS version of Node
 
-      # THIS IS THE NEW DEBUGGING STEP
-      - name: DEBUG - Show package.json content
-        run: cat package.json
-
-      - name: Install dependencies and create lockfile
+      # Step 3: Run npm install to generate the package-lock.json
+      - name: Generate package-lock.json
         run: npm install
 
+      # Step 4: Automatically commit the new file back to your repository
       - name: Commit and push package-lock.json
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          
-          git add package-lock.json
-          
-          if ! git diff --staged --quiet; then
-            echo "package-lock.json created/updated. Committing..."
-            git commit -m "build: generate package-lock.json"
-            git push
-          else
-            echo "package-lock.json is already up-to-date."
-          fi
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "ci: Generate package-lock.json"
+          file_pattern: "package-lock.json"
