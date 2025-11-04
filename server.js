@@ -3,82 +3,159 @@ const fetch = require('node-fetch');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Stremio addon sources for aggregating streams
 const STREAM_SOURCES = [
-'https://torrentio.strem.fun',
-'https://v3-cinemeta.strem.io'
+  'https://torrentio.strem.fun/sort=qualitysize|qualityfilter=480p,scr,cam/manifest.json',
+  'https://torrentio.strem.fun/manifest.json'
 ];
 
+// Core Stremio manifest
 app.get('/manifest.json', (req, res) => {
-res.json({
-id: 'com.lightweight.stremio',
-version: '1.0.0',
-name: 'Lightweight Stremio',
-description: 'Minimal iPhone-optimized Stremio addon',
-resources: ['stream'],
-types: ['movie', 'series'],
-idPrefixes: ['tt'],
-catalogs: []
-});
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Headers', '*');
+  res.json({
+    id: 'org.stremio.lightweight',
+    version: '1.0.0',
+    name: 'Lightweight Stremio',
+    description: 'Optimized Stremio backend for iPhone',
+    logo: 'https://www.stremio.com/website/stremio-logo-small.png',
+    resources: ['catalog', 'stream', 'meta'],
+    types: ['movie', 'series'],
+    catalogs: [
+      {
+        type: 'movie',
+        id: 'lightweight_movies',
+        name: 'Movies',
+        extra: [{ name: 'skip', isRequired: false }]
+      },
+      {
+        type: 'series', 
+        id: 'lightweight_series',
+        name: 'Series',
+        extra: [{ name: 'skip', isRequired: false }]
+      }
+    ],
+    idPrefixes: ['tt'],
+    behaviorHints: {
+      adult: false,
+      p2p: false
+    }
+  });
 });
 
-app.get('/stream/:type/:id', async (req, res) => {
-const { type, id } = req.params;
-try {
-const streamPromises = STREAM_SOURCES.map(source =>
-fetch(`${source}/stream/${type}/${id}.json`)
-.then(r => r.ok ? r.json() : null)
-.catch(() => null)
-);
-const results = await Promise.all(streamPromises);
-const allStreams = results
-.filter(r => r && r.streams)
-.flatMap(r => r.streams)
-.filter(s => s.url || s.infoHash);
-res.json({ streams: allStreams });
-} catch (error) {
-console.error('Stream fetch error:', error);
-res.status(500).json({ streams: [] });
-}
+// Catalog endpoint
+app.get('/catalog/:type/:id/:extra?.json', async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  const { type } = req.params;
+  
+  // Basic catalog response - can be expanded with real content
+  res.json({
+    metas: [
+      {
+        id: 'tt0816692',
+        type: 'movie',
+        name: 'Interstellar',
+        poster: 'https://image.tmdb.org/t/p/w500/gEU2QniE6E77NI6lCU6MxlNBvIx.jpg'
+      },
+      {
+        id: 'tt0468569',
+        type: 'movie', 
+        name: 'The Dark Knight',
+        poster: 'https://image.tmdb.org/t/p/w500/qJ2tW6WMUDux911r6m7haRef0WH.jpg'
+      }
+    ]
+  });
 });
 
-app.get('/allstreams/:id', async (req, res) => {
-const { id } = req.params;
-try {
-const streamPromises = STREAM_SOURCES.map(source =>
-fetch(`${source}/stream/movie/${id}.json`)
-.then(r => r.ok ? r.json() : null)
-.catch(() => null)
-);
-const results = await Promise.all(streamPromises);
-const allStreams = results
-.filter(r => r && r.streams)
-.flatMap(r => r.streams)
-.filter(s => s.url)
-.map(s => ({
-title: s.title || s.name || 'Unknown Stream',
-url: s.url,
-quality: extractQuality(s.title || s.name || '')
-}))
-.slice(0, 50);
-res.json(allStreams);
-} catch (error) {
-console.error('All streams fetch error:', error);
-res.status(500).json([]);
-}
+// Meta endpoint
+app.get('/meta/:type/:id.json', async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  const { type, id } = req.params;
+  
+  res.json({
+    meta: {
+      id: id,
+      type: type,
+      name: 'Movie',
+      poster: 'https://image.tmdb.org/t/p/w500/placeholder.jpg'
+    }
+  });
+});
+
+// Stream aggregation endpoint
+app.get('/stream/:type/:id.json', async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  const { type, id } = req.params;
+  
+  try {
+    // Fetch from Torrentio
+    const torrentioUrl = 'https://torrentio.strem.fun/stream/' + type + '/' + id + '.json';
+    const response = await fetch(torrentioUrl);
+    
+    if (response.ok) {
+      const data = await response.json();
+      res.json(data);
+    } else {
+      res.json({ streams: [] });
+    }
+  } catch (error) {
+    console.error('Stream fetch error:', error);
+    res.json({ streams: [] });
+  }
+});
+
+// Custom API endpoint for fetching all streams with details
+app.get('/api/streams/:type/:id', async (req, res) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  const { type, id } = req.params;
+  
+  try {
+    const torrentioUrl = 'https://torrentio.strem.fun/stream/' + type + '/' + id + '.json';
+    const response = await fetch(torrentioUrl);
+    
+    if (response.ok) {
+      const data = await response.json();
+      const streams = data.streams || [];
+      
+      // Format streams for UI
+      const formattedStreams = streams.map(stream => ({
+        title: stream.title || stream.name || 'Unknown',
+        url: stream.url || (stream.infoHash ? 'magnet:?xt=urn:btih:' + stream.infoHash : ''),
+        quality: extractQuality(stream.title || stream.name || ''),
+        size: extractSize(stream.title || stream.name || ''),
+        seeders: stream.seeders || 0,
+        type: stream.url ? 'direct' : 'torrent'
+      })).filter(s => s.url);
+      
+      res.json({ streams: formattedStreams });
+    } else {
+      res.json({ streams: [] });
+    }
+  } catch (error) {
+    console.error('API stream fetch error:', error);
+    res.json({ streams: [] });
+  }
 });
 
 function extractQuality(title) {
-const qualityMatch = title.match(/(\d{3,4}p)/i);
-return qualityMatch ? qualityMatch[1] : 'SD';
+  const match = title.match(/(\d{3,4}p)/i);
+  return match ? match[1] : 'SD';
 }
 
+function extractSize(title) {
+  const match = title.match(/(\d+\.?\d*\s?[GM]B)/i);
+  return match ? match[1] : '';
+}
+
+// Main UI with burger menu and player integration
 app.get('/', (req, res) => {
-const htmlContent = `<!DOCTYPE html>
+  const html = `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Stremio Lite</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <title>Stremio Lightweight</title>
   <style>
     * {
       margin: 0;
@@ -86,623 +163,652 @@ const htmlContent = `<!DOCTYPE html>
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
     }
+    
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      min-height: 100vh;
-      color: white;
-      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0f0f0f;
+      color: #fff;
       overflow-x: hidden;
-      -webkit-text-size-adjust: 100%;
+      position: relative;
+      min-height: 100vh;
     }
+    
     .header {
+      background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%);
+      padding: 15px 20px;
       display: flex;
       align-items: center;
-      padding: 20px;
-      background: rgba(0,0,0,0.2);
-      backdrop-filter: blur(10px);
-      position: sticky;
+      position: fixed;
       top: 0;
-      z-index: 100;
+      left: 0;
+      right: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 20px rgba(0,0,0,0.3);
     }
-    .menu-btn {
-      width: 40px;
-      height: 40px;
-      background: rgba(255,255,255,0.1);
-      border: none;
-      border-radius: 8px;
-      cursor: pointer;
+    
+    .burger-menu {
+      width: 35px;
+      height: 35px;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      gap: 5px;
+      cursor: pointer;
       margin-right: 15px;
-      transition: background 0.3s;
+      position: relative;
+      z-index: 1002;
     }
-    .menu-btn:active {
-      background: rgba(255,255,255,0.2);
-    }
-    .menu-btn span {
-      width: 20px;
-      height: 2px;
+    
+    .burger-menu span {
+      width: 25px;
+      height: 3px;
       background: white;
+      margin: 3px 0;
+      transition: 0.3s;
       border-radius: 2px;
-      transition: transform 0.3s;
     }
-    .menu-btn.active span:nth-child(1) {
-      transform: translateY(7px) rotate(45deg);
+    
+    .burger-menu.active span:nth-child(1) {
+      transform: rotate(45deg) translate(6px, 6px);
     }
-    .menu-btn.active span:nth-child(2) {
+    
+    .burger-menu.active span:nth-child(2) {
       opacity: 0;
     }
-    .menu-btn.active span:nth-child(3) {
-      transform: translateY(-7px) rotate(-45deg);
+    
+    .burger-menu.active span:nth-child(3) {
+      transform: rotate(-45deg) translate(6px, -6px);
     }
-    .header h1 {
-      font-size: 24px;
-      font-weight: 600;
-    }
-    .side-menu {
+    
+    .sidebar {
       position: fixed;
-      left: -280px;
       top: 0;
+      left: -300px;
       width: 280px;
       height: 100vh;
-      background: rgba(0,0,0,0.95);
-      backdrop-filter: blur(20px);
-      z-index: 200;
-      transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      background: linear-gradient(180deg, #1a1a2e 0%, #0f0f23 100%);
+      transition: left 0.3s ease;
+      z-index: 1001;
+      padding: 80px 20px 20px;
       overflow-y: auto;
-      padding: 80px 20px 20px 20px;
+      box-shadow: 2px 0 20px rgba(0,0,0,0.5);
     }
-    .side-menu.open {
+    
+    .sidebar.active {
       left: 0;
     }
-    .menu-overlay {
+    
+    .sidebar-overlay {
       position: fixed;
       top: 0;
       left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.5);
-      z-index: 150;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
       opacity: 0;
       pointer-events: none;
       transition: opacity 0.3s;
+      z-index: 999;
     }
-    .menu-overlay.active {
+    
+    .sidebar-overlay.active {
       opacity: 1;
       pointer-events: all;
     }
-    .menu-section {
+    
+    .player-section {
       margin-bottom: 30px;
     }
-    .menu-section h3 {
+    
+    .player-section h3 {
       font-size: 14px;
-      color: rgba(255,255,255,0.6);
+      color: #999;
       margin-bottom: 15px;
       text-transform: uppercase;
       letter-spacing: 1px;
     }
+    
     .player-option {
-      background: rgba(255,255,255,0.1);
-      border: 2px solid transparent;
-      padding: 15px;
-      border-radius: 12px;
-      margin-bottom: 10px;
-      cursor: pointer;
-      transition: all 0.3s;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      padding: 12px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: 2px solid transparent;
     }
-    .player-option:active {
-      transform: scale(0.98);
+    
+    .player-option:hover {
+      background: rgba(255,255,255,0.1);
     }
-    .player-option.selected {
-      border-color: #667eea;
-      background: rgba(102,126,234,0.2);
+    
+    .player-option.active {
+      background: rgba(124,58,237,0.2);
+      border-color: #7c3aed;
     }
-    .player-option .checkmark {
+    
+    .player-option .icon {
+      width: 30px;
+      height: 30px;
+      margin-right: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    
+    .player-option .name {
+      flex: 1;
+      font-size: 15px;
+      font-weight: 500;
+    }
+    
+    .player-option .check {
       width: 20px;
       height: 20px;
       border-radius: 50%;
-      border: 2px solid white;
+      border: 2px solid #555;
       display: flex;
       align-items: center;
       justify-content: center;
       font-size: 12px;
     }
-    .player-option.selected .checkmark {
-      background: #667eea;
-      border-color: #667eea;
+    
+    .player-option.active .check {
+      background: #7c3aed;
+      border-color: #7c3aed;
+      color: white;
     }
-    .container {
-      padding: 20px;
-      max-width: 800px;
+    
+    .main-content {
+      padding: 80px 20px 20px;
+      max-width: 1200px;
       margin: 0 auto;
     }
-    .input-section {
-      background: rgba(255,255,255,0.1);
-      backdrop-filter: blur(10px);
-      padding: 20px;
-      border-radius: 16px;
-      margin-bottom: 20px;
-    }
-    .input-group {
-      display: flex;
-      gap: 10px;
-    }
-    #movieId {
-      flex: 1;
-      padding: 15px;
-      border: 2px solid rgba(255,255,255,0.2);
+    
+    .search-box {
+      background: rgba(255,255,255,0.05);
       border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 30px;
+      backdrop-filter: blur(10px);
+    }
+    
+    .search-input {
+      width: 100%;
+      padding: 15px;
       background: rgba(0,0,0,0.3);
+      border: 2px solid rgba(255,255,255,0.1);
+      border-radius: 8px;
       color: white;
       font-size: 16px;
+      transition: border-color 0.2s;
+    }
+    
+    .search-input:focus {
       outline: none;
-      transition: border-color 0.3s;
+      border-color: #7c3aed;
     }
-    #movieId:focus {
-      border-color: rgba(255,255,255,0.5);
+    
+    .search-input::placeholder {
+      color: rgba(255,255,255,0.4);
     }
-    #movieId::placeholder {
-      color: rgba(255,255,255,0.5);
-    }
-    .btn {
-      padding: 15px 30px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    
+    .search-btn {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%);
       border: none;
-      border-radius: 12px;
+      border-radius: 8px;
       color: white;
+      font-size: 16px;
       font-weight: 600;
       cursor: pointer;
-      transition: transform 0.2s, box-shadow 0.2s;
-      font-size: 16px;
+      margin-top: 12px;
+      transition: transform 0.2s;
     }
-    .btn:active {
-      transform: scale(0.95);
+    
+    .search-btn:hover {
+      transform: translateY(-2px);
     }
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
+    
+    .search-btn:active {
+      transform: translateY(0);
     }
+    
     .loading {
       display: none;
-      background: rgba(0,0,0,0.9);
-      backdrop-filter: blur(10px);
-      padding: 20px 30px;
-      border-radius: 16px;
       text-align: center;
-      margin: 20px auto;
-      width: fit-content;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+      padding: 40px;
     }
-    .loading.show {
+    
+    .loading.active {
       display: block;
-      animation: fadeIn 0.3s;
     }
+    
     .spinner {
-      width: 40px;
-      height: 40px;
-      border: 3px solid rgba(255,255,255,0.2);
-      border-top-color: white;
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(255,255,255,0.1);
+      border-top-color: #7c3aed;
       border-radius: 50%;
-      margin: 0 auto 15px;
-      animation: spin 0.8s linear infinite;
+      animation: spin 1s linear infinite;
+      margin: 0 auto;
     }
+    
     @keyframes spin {
       to { transform: rotate(360deg); }
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(-10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-    #streamsList {
+    
+    .streams-container {
       display: grid;
-      gap: 12px;
+      gap: 15px;
     }
+    
     .stream-item {
-      background: rgba(255,255,255,0.1);
-      backdrop-filter: blur(10px);
-      padding: 18px;
+      background: rgba(255,255,255,0.05);
       border-radius: 12px;
+      padding: 15px;
       cursor: pointer;
-      transition: all 0.3s;
+      transition: all 0.2s;
       border: 2px solid transparent;
       position: relative;
       overflow: hidden;
     }
-    .stream-item:active {
-      transform: scale(0.98);
-      background: rgba(255,255,255,0.15);
+    
+    .stream-item:hover {
+      background: rgba(255,255,255,0.08);
+      transform: translateY(-2px);
     }
+    
     .stream-item.copied {
       border-color: #10b981;
-      background: rgba(16,185,129,0.2);
+      background: rgba(16,185,129,0.1);
     }
-    .stream-item .copy-indicator {
-      position: absolute;
-      top: 50%;
-      right: 15px;
-      transform: translateY(-50%) scale(0);
-      background: #10b981;
-      color: white;
-      padding: 5px 12px;
-      border-radius: 20px;
-      font-size: 12px;
-      font-weight: 600;
-      transition: transform 0.3s;
-      pointer-events: none;
-    }
-    .stream-item.copied .copy-indicator {
-      transform: translateY(-50%) scale(1);
-    }
+    
     .stream-title {
+      font-size: 14px;
       font-weight: 600;
-      margin-bottom: 5px;
-      padding-right: 80px;
+      margin-bottom: 8px;
+      color: #fff;
     }
-    .stream-quality {
+    
+    .stream-info {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    
+    .stream-badge {
       display: inline-block;
-      background: rgba(0,0,0,0.3);
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 12px;
+      padding: 4px 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      font-size: 11px;
       color: rgba(255,255,255,0.8);
     }
-    .player-picker {
+    
+    .stream-badge.quality {
+      background: rgba(124,58,237,0.2);
+      color: #a78bfa;
+    }
+    
+    .stream-badge.size {
+      background: rgba(59,130,246,0.2);
+      color: #60a5fa;
+    }
+    
+    .stream-badge.seeders {
+      background: rgba(34,197,94,0.2);
+      color: #4ade80;
+    }
+    
+    .copy-toast {
       position: fixed;
-      bottom: -100%;
-      left: 0;
-      width: 100%;
-      background: rgba(0,0,0,0.95);
-      backdrop-filter: blur(20px);
-      border-radius: 20px 20px 0 0;
-      padding: 30px 20px;
-      z-index: 300;
-      transition: bottom 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-      box-shadow: 0 -10px 40px rgba(0,0,0,0.5);
-    }
-    .player-picker.show {
-      bottom: 0;
-    }
-    .player-picker h3 {
-      margin-bottom: 20px;
-      font-size: 20px;
-      text-align: center;
-    }
-    .player-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-    .player-btn {
-      background: rgba(255,255,255,0.1);
-      border: 2px solid rgba(255,255,255,0.2);
-      padding: 20px;
-      border-radius: 12px;
-      cursor: pointer;
-      transition: all 0.3s;
-      text-align: center;
-      font-size: 16px;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #10b981;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
       font-weight: 600;
-      color: white;
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 2000;
     }
-    .player-btn:active {
-      transform: scale(0.95);
-      background: rgba(255,255,255,0.2);
+    
+    .copy-toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
     }
-    .cancel-btn {
-      width: 100%;
-      padding: 15px;
-      background: rgba(255,255,255,0.1);
-      border: none;
-      border-radius: 12px;
-      color: white;
-      font-size: 16px;
-      cursor: pointer;
-    }
+    
     .empty-state {
       text-align: center;
       padding: 60px 20px;
-      color: rgba(255,255,255,0.6);
+      color: rgba(255,255,255,0.4);
     }
+    
     .empty-state h3 {
       font-size: 20px;
       margin-bottom: 10px;
     }
-    @media (min-width: 768px) {
-      .player-grid {
-        grid-template-columns: repeat(3, 1fr);
-      }
-      .stream-item:hover {
-        background: rgba(255,255,255,0.15);
-        transform: translateY(-2px);
+    
+    @media (max-width: 768px) {
+      .stream-item {
+        padding: 12px;
       }
     }
   </style>
 </head>
 <body>
   <div class="header">
-    <button class="menu-btn" id="menuBtn">
+    <div class="burger-menu" id="burgerMenu">
       <span></span>
       <span></span>
       <span></span>
-    </button>
-    <h1>🎬 Stremio Lite</h1>
+    </div>
+    <h1 style="font-size: 20px; font-weight: 600;">Stremio Lightweight</h1>
   </div>
-  <div class="menu-overlay" id="menuOverlay"></div>
-  <div class="side-menu" id="sideMenu">
-    <div class="menu-section">
+  
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="player-section">
       <h3>Default Player</h3>
-      <div class="player-option selected" data-player="infuse">
-        <span>📱 Infuse</span>
-        <div class="checkmark">✓</div>
+      <div class="player-option active" data-player="infuse">
+        <div class="icon">📱</div>
+        <div class="name">Infuse</div>
+        <div class="check">✓</div>
       </div>
       <div class="player-option" data-player="nplayer">
-        <span>🎥 nPlayer</span>
-        <div class="checkmark"></div>
+        <div class="icon">🎬</div>
+        <div class="name">nPlayer</div>
+        <div class="check"></div>
       </div>
       <div class="player-option" data-player="outplayer">
-        <span>▶️ OutPlayer</span>
-        <div class="checkmark"></div>
+        <div class="icon">▶️</div>
+        <div class="name">OutPlayer</div>
+        <div class="check"></div>
       </div>
       <div class="player-option" data-player="vlc">
-        <span>🎵 VLC</span>
-        <div class="checkmark"></div>
+        <div class="icon">🎵</div>
+        <div class="name">VLC</div>
+        <div class="check"></div>
       </div>
       <div class="player-option" data-player="browser">
-        <span>🌐 Browser</span>
-        <div class="checkmark"></div>
+        <div class="icon">🌐</div>
+        <div class="name">Browser</div>
+        <div class="check"></div>
       </div>
     </div>
-    <div class="menu-section">
-      <h3>About</h3>
-      <p style="color: rgba(255,255,255,0.6); font-size: 14px; line-height: 1.6;">
-        Lightweight Stremio backend optimized for iPhone. 
-        Paste IMDb IDs in the URL bar or use the input field.
-      </p>
+    <div class="player-section">
+      <h3>Settings</h3>
+      <div style="color: rgba(255,255,255,0.4); font-size: 13px; line-height: 1.6;">
+        Select your preferred player. Streams will automatically copy and open in the selected player.
+      </div>
     </div>
   </div>
-  <div class="container">
-    <div class="input-section">
-      <div class="input-group">
-        <input type="text" id="movieId" placeholder="Enter IMDb ID (e.g., tt0111161)" autocomplete="off" autocapitalize="off">
-        <button class="btn" id="fetchBtn">Fetch</button>
-      </div>
+  
+  <div class="main-content">
+    <div class="search-box">
+      <input type="text" id="searchInput" class="search-input" placeholder="Enter IMDb ID (e.g., tt0816692)" value="">
+      <button class="search-btn" id="searchBtn">Fetch Streams</button>
     </div>
+    
     <div class="loading" id="loading">
       <div class="spinner"></div>
-      <div>Fetching streams...</div>
+      <p style="margin-top: 20px; color: rgba(255,255,255,0.6);">Fetching streams...</p>
     </div>
-    <div id="streamsList"></div>
-  </div>
-  <div class="player-picker" id="playerPicker">
-    <h3>Choose Player</h3>
-    <div class="player-grid">
-      <button class="player-btn" data-player="infuse">📱 Infuse</button>
-      <button class="player-btn" data-player="nplayer">🎥 nPlayer</button>
-      <button class="player-btn" data-player="outplayer">▶️ OutPlayer</button>
-      <button class="player-btn" data-player="vlc">🎵 VLC</button>
-      <button class="player-btn" data-player="browser">🌐 Browser</button>
+    
+    <div class="streams-container" id="streamsContainer"></div>
+    
+    <div class="empty-state" id="emptyState" style="display: none;">
+      <h3>No streams found</h3>
+      <p>Try a different IMDb ID</p>
     </div>
-    <button class="cancel-btn" id="cancelPicker">Cancel</button>
   </div>
+  
+  <div class="copy-toast" id="copyToast">Copied! Opening player...</div>
+  
   <script>
-    let state = {
-      copiedUrl: null,
-      defaultPlayer: 'infuse',
-      currentStreams: []
-    };
-    const elements = {
-      menuBtn: document.getElementById('menuBtn'),
-      sideMenu: document.getElementById('sideMenu'),
-      menuOverlay: document.getElementById('menuOverlay'),
-      movieId: document.getElementById('movieId'),
-      fetchBtn: document.getElementById('fetchBtn'),
-      loading: document.getElementById('loading'),
-      streamsList: document.getElementById('streamsList'),
-      playerPicker: document.getElementById('playerPicker'),
-      cancelPicker: document.getElementById('cancelPicker')
-    };
-    elements.menuBtn.addEventListener('click', function() {
-      elements.menuBtn.classList.toggle('active');
-      elements.sideMenu.classList.toggle('open');
-      elements.menuOverlay.classList.toggle('active');
+    // State management
+    let currentPlayer = localStorage.getItem('preferredPlayer') || 'infuse';
+    let fetchedStreams = [];
+    
+    // DOM elements
+    const burgerMenu = document.getElementById('burgerMenu');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarOverlay = document.getElementById('sidebarOverlay');
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const loading = document.getElementById('loading');
+    const streamsContainer = document.getElementById('streamsContainer');
+    const emptyState = document.getElementById('emptyState');
+    const copyToast = document.getElementById('copyToast');
+    
+    // Burger menu functionality
+    burgerMenu.addEventListener('click', () => {
+      burgerMenu.classList.toggle('active');
+      sidebar.classList.toggle('active');
+      sidebarOverlay.classList.toggle('active');
     });
-    elements.menuOverlay.addEventListener('click', closeMenu);
-    function closeMenu() {
-      elements.menuBtn.classList.remove('active');
-      elements.sideMenu.classList.remove('open');
-      elements.menuOverlay.classList.remove('active');
-    }
-    document.querySelectorAll('.player-option').forEach(function(option) {
+    
+    sidebarOverlay.addEventListener('click', () => {
+      burgerMenu.classList.remove('active');
+      sidebar.classList.remove('active');
+      sidebarOverlay.classList.remove('active');
+    });
+    
+    // Player selection
+    document.querySelectorAll('.player-option').forEach(option => {
       option.addEventListener('click', function() {
-        document.querySelectorAll('.player-option').forEach(function(o) {
-          o.classList.remove('selected');
+        document.querySelectorAll('.player-option').forEach(opt => {
+          opt.classList.remove('active');
+          opt.querySelector('.check').textContent = '';
         });
-        this.classList.add('selected');
-        state.defaultPlayer = this.dataset.player;
+        
+        this.classList.add('active');
+        this.querySelector('.check').textContent = '✓';
+        currentPlayer = this.dataset.player;
+        localStorage.setItem('preferredPlayer', currentPlayer);
+        
+        // Close sidebar after selection
+        setTimeout(() => {
+          burgerMenu.classList.remove('active');
+          sidebar.classList.remove('active');
+          sidebarOverlay.classList.remove('active');
+        }, 300);
       });
     });
-    function getIdFromUrl() {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('id');
-    }
-    function updateUrl(id) {
-      const newUrl = id ? '?id=' + id : window.location.pathname;
-      window.history.pushState({}, '', newUrl);
-    }
-    async function fetchStreams(id) {
-      if (!id || !id.startsWith('tt')) {
-        alert('Please enter a valid IMDb ID (e.g., tt0111161)');
+    
+    // Initialize player selection
+    document.querySelectorAll('.player-option').forEach(option => {
+      if (option.dataset.player === currentPlayer) {
+        option.classList.add('active');
+        option.querySelector('.check').textContent = '✓';
+      } else {
+        option.classList.remove('active');
+        option.querySelector('.check').textContent = '';
+      }
+    });
+    
+    // Fetch streams
+    async function fetchStreams() {
+      const imdbId = searchInput.value.trim();
+      
+      if (!imdbId || !imdbId.startsWith('tt')) {
+        alert('Please enter a valid IMDb ID (starts with tt)');
         return;
       }
-      elements.loading.classList.add('show');
-      elements.streamsList.innerHTML = '';
-      elements.fetchBtn.disabled = true;
+      
+      loading.classList.add('active');
+      streamsContainer.innerHTML = '';
+      emptyState.style.display = 'none';
+      
       try {
-        const response = await fetch('/allstreams/' + id);
-        const streams = await response.json();
-        state.currentStreams = streams;
-        elements.loading.classList.remove('show');
-        elements.fetchBtn.disabled = false;
-        updateUrl(id);
-        if (streams.length > 0) {
-          displayStreams(streams);
+        const response = await fetch('/api/streams/movie/' + imdbId);
+        const data = await response.json();
+        
+        loading.classList.remove('active');
+        
+        if (data.streams && data.streams.length > 0) {
+          fetchedStreams = data.streams;
+          displayStreams(data.streams);
         } else {
-          showEmptyState();
+          emptyState.style.display = 'block';
         }
       } catch (error) {
-        console.error('Fetch error:', error);
-        elements.loading.classList.remove('show');
-        elements.fetchBtn.disabled = false;
-        alert('Failed to fetch streams. Please try again.');
+        console.error('Error fetching streams:', error);
+        loading.classList.remove('active');
+        emptyState.style.display = 'block';
       }
     }
+    
+    // Display streams
     function displayStreams(streams) {
-      elements.streamsList.innerHTML = streams.map(function(stream, index) {
-        return '<div class="stream-item" data-url="' + stream.url + '" data-index="' + index + '">' +
+      streamsContainer.innerHTML = streams.map((stream, index) => {
+        const badges = [];
+        if (stream.quality) badges.push('<span class="stream-badge quality">' + stream.quality + '</span>');
+        if (stream.size) badges.push('<span class="stream-badge size">' + stream.size + '</span>');
+        if (stream.seeders > 0) badges.push('<span class="stream-badge seeders">👥 ' + stream.seeders + '</span>');
+        
+        return '<div class="stream-item" data-index="' + index + '">' +
           '<div class="stream-title">' + stream.title + '</div>' +
-          '<span class="stream-quality">' + stream.quality + '</span>' +
-          '<div class="copy-indicator">Copied!</div>' +
+          '<div class="stream-info">' + badges.join('') + '</div>' +
         '</div>';
       }).join('');
-      document.querySelectorAll('.stream-item').forEach(function(item) {
+      
+      // Add click handlers
+      document.querySelectorAll('.stream-item').forEach(item => {
         item.addEventListener('click', handleStreamClick);
       });
     }
-    function showEmptyState() {
-      elements.streamsList.innerHTML = 
-        '<div class="empty-state">' +
-          '<h3>No streams found</h3>' +
-          '<p>Try a different movie ID</p>' +
-        '</div>';
-    }
+    
+    // Handle stream click - auto copy and open
     async function handleStreamClick(e) {
-      const item = e.currentTarget;
-      const url = item.dataset.url;
+      const index = parseInt(e.currentTarget.dataset.index);
+      const stream = fetchedStreams[index];
+      
+      if (!stream || !stream.url) return;
+      
+      // Copy to clipboard
       try {
-        await navigator.clipboard.writeText(url);
-        state.copiedUrl = url;
-        item.classList.add('copied');
-        setTimeout(function() {
-          item.classList.remove('copied');
-        }, 2000);
-        setTimeout(function() {
-          elements.playerPicker.classList.add('show');
-        }, 300);
-      } catch (error) {
-        console.error('Copy failed:', error);
-        const textArea = document.createElement('textarea');
-        textArea.value = url;
-        textArea.style.position = 'fixed';
-        textArea.style.opacity = '0';
-        document.body.appendChild(textArea);
-        textArea.select();
+        await navigator.clipboard.writeText(stream.url);
+      } catch (err) {
+        // Fallback for older browsers
+        const textarea = document.createElement('textarea');
+        textarea.value = stream.url;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
         document.execCommand('copy');
-        document.body.removeChild(textArea);
-        state.copiedUrl = url;
-        item.classList.add('copied');
-        setTimeout(function() {
-          item.classList.remove('copied');
-        }, 2000);
-        setTimeout(function() {
-          elements.playerPicker.classList.add('show');
-        }, 300);
+        document.body.removeChild(textarea);
       }
+      
+      // Visual feedback
+      e.currentTarget.classList.add('copied');
+      copyToast.classList.add('show');
+      
+      setTimeout(() => {
+        e.currentTarget.classList.remove('copied');
+        copyToast.classList.remove('show');
+      }, 2000);
+      
+      // Open in player after short delay
+      setTimeout(() => {
+        openInPlayer(stream.url, stream.type);
+      }, 500);
     }
-    document.querySelectorAll('.player-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        const player = this.dataset.player;
-        openInPlayer(player, state.copiedUrl);
-        closePlayerPicker();
-      });
-    });
-    elements.cancelPicker.addEventListener('click', closePlayerPicker);
-    function closePlayerPicker() {
-      elements.playerPicker.classList.remove('show');
-    }
-    function openInPlayer(player, url) {
-      if (!url) return;
+    
+    // Open in selected player
+    function openInPlayer(url, streamType) {
       let playerUrl;
-      switch(player) {
+      
+      switch(currentPlayer) {
         case 'infuse':
-          playerUrl = 'infuse://x-callback-url/play?url=' + encodeURIComponent(url);
+          if (streamType === 'torrent') {
+            playerUrl = 'infuse://x-callback-url/play?url=' + encodeURIComponent(url);
+          } else {
+            playerUrl = 'infuse://x-callback-url/play?url=' + encodeURIComponent(url);
+          }
           break;
+        
         case 'nplayer':
           playerUrl = 'nplayer-' + url;
           break;
+        
         case 'outplayer':
           playerUrl = 'outplayer://' + encodeURIComponent(url);
           break;
+        
         case 'vlc':
           playerUrl = 'vlc-x-callback://x-callback-url/stream?url=' + encodeURIComponent(url);
           break;
+        
         case 'browser':
           window.open(url, '_blank');
           return;
+        
         default:
-          playerUrl = url;
+          window.open(url, '_blank');
+          return;
       }
+      
+      // Try to open in app
       window.location.href = playerUrl;
-      setTimeout(function() {
-        const appInstalled = document.visibilityState === 'hidden';
-        if (!appInstalled && player !== 'browser') {
-          if (confirm(player + ' does not seem to be installed. Open in browser instead?')) {
+      
+      // Fallback if app not installed
+      setTimeout(() => {
+        if (document.visibilityState === 'visible') {
+          if (confirm('Player app may not be installed. Open in browser instead?')) {
             window.open(url, '_blank');
           }
         }
-      }, 2000);
+      }, 2500);
     }
-    elements.fetchBtn.addEventListener('click', function() {
-      const id = elements.movieId.value.trim();
-      if (id) fetchStreams(id);
-    });
-    elements.movieId.addEventListener('keypress', function(e) {
+    
+    // Search button click
+    searchBtn.addEventListener('click', fetchStreams);
+    
+    // Enter key in search
+    searchInput.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
-        const id = elements.movieId.value.trim();
-        if (id) fetchStreams(id);
+        fetchStreams();
       }
     });
-    window.addEventListener('DOMContentLoaded', function() {
-      const urlId = getIdFromUrl();
-      if (urlId) {
-        elements.movieId.value = urlId;
-        fetchStreams(urlId);
+    
+    // Check URL params on load
+    window.addEventListener('DOMContentLoaded', () => {
+      const params = new URLSearchParams(window.location.search);
+      const imdbId = params.get('id');
+      
+      if (imdbId) {
+        searchInput.value = imdbId;
+        fetchStreams();
       }
     });
-    let touchStartY = 0;
-    document.addEventListener('touchstart', function(e) {
-      touchStartY = e.touches[0].clientY;
-    }, { passive: true });
-    document.addEventListener('touchmove', function(e) {
-      const touchY = e.touches[0].clientY;
-      const touchDiff = touchY - touchStartY;
-      if (touchDiff > 0 && window.scrollY === 0) {
-        e.preventDefault();
-      }
-    }, { passive: false });
   </script>
 </body>
 </html>`;
-  res.send(htmlContent);
+  
+  res.send(html);
 });
 
+// Health check endpoint
 app.get('/health', (req, res) => {
-res.json({ status: 'ok', uptime: process.uptime() });
+  res.json({ 
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
 });
 
-app.use((req, res) => {
-res.status(404).json({ error: 'Not found' });
-});
-
+// Start server
 app.listen(PORT, () => {
-console.log('🚀 Stremio Lite running on port ' + PORT);
-console.log('📱 Access at: http://localhost:' + PORT);
-console.log('🎬 Example: http://localhost:' + PORT + '?id=tt0111161');
+  console.log('Stremio Lightweight Backend running on port ' + PORT);
+  console.log('Access at: http://localhost:' + PORT);
+  console.log('Stremio addon manifest: http://localhost:' + PORT + '/manifest.json');
 });
