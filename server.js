@@ -1,27 +1,27 @@
-const express = require(‘express’);
-const fetch = require(‘node-fetch’);
+const express = require('express');
+const fetch = require('node-fetch');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const STREAM_SOURCES = [
-‘https://torrentio.strem.fun’,
-‘https://v3-cinemeta.strem.io’
+'https://torrentio.strem.fun',
+'https://v3-cinemeta.strem.io'
 ];
 
-app.get(’/manifest.json’, (req, res) => {
+app.get('/manifest.json', (req, res) => {
 res.json({
-id: ‘com.lightweight.stremio’,
-version: ‘1.0.0’,
-name: ‘Lightweight Stremio’,
-description: ‘Minimal iPhone-optimized Stremio addon’,
-resources: [‘stream’],
-types: [‘movie’, ‘series’],
-idPrefixes: [‘tt’],
+id: 'com.lightweight.stremio',
+version: '1.0.0',
+name: 'Lightweight Stremio',
+description: 'Minimal iPhone-optimized Stremio addon',
+resources: ['stream'],
+types: ['movie', 'series'],
+idPrefixes: ['tt'],
 catalogs: []
 });
 });
 
-app.get(’/stream/:type/:id’, async (req, res) => {
+app.get('/stream/:type/:id', async (req, res) => {
 const { type, id } = req.params;
 try {
 const streamPromises = STREAM_SOURCES.map(source =>
@@ -36,12 +36,12 @@ const allStreams = results
 .filter(s => s.url || s.infoHash);
 res.json({ streams: allStreams });
 } catch (error) {
-console.error(‘Stream fetch error:’, error);
+console.error('Stream fetch error:', error);
 res.status(500).json({ streams: [] });
 }
 });
 
-app.get(’/allstreams/:id’, async (req, res) => {
+app.get('/allstreams/:id', async (req, res) => {
 const { id } = req.params;
 try {
 const streamPromises = STREAM_SOURCES.map(source =>
@@ -55,26 +55,25 @@ const allStreams = results
 .flatMap(r => r.streams)
 .filter(s => s.url)
 .map(s => ({
-title: s.title || s.name || ‘Unknown Stream’,
+title: s.title || s.name || 'Unknown Stream',
 url: s.url,
-quality: extractQuality(s.title || s.name || ‘’)
+quality: extractQuality(s.title || s.name || '')
 }))
 .slice(0, 50);
 res.json(allStreams);
 } catch (error) {
-console.error(‘All streams fetch error:’, error);
+console.error('All streams fetch error:', error);
 res.status(500).json([]);
 }
 });
 
 function extractQuality(title) {
 const qualityMatch = title.match(/(\d{3,4}p)/i);
-return qualityMatch ? qualityMatch[1] : ‘SD’;
+return qualityMatch ? qualityMatch[1] : 'SD';
 }
 
-app.get(’/’, (req, res) => {
+app.get('/', (req, res) => {
 const htmlContent = `<!DOCTYPE html>
-
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -694,16 +693,16 @@ const htmlContent = `<!DOCTYPE html>
   res.send(htmlContent);
 });
 
-app.get(’/health’, (req, res) => {
-res.json({ status: ‘ok’, uptime: process.uptime() });
+app.get('/health', (req, res) => {
+res.json({ status: 'ok', uptime: process.uptime() });
 });
 
 app.use((req, res) => {
-res.status(404).json({ error: ‘Not found’ });
+res.status(404).json({ error: 'Not found' });
 });
 
 app.listen(PORT, () => {
-console.log(’🚀 Stremio Lite running on port ’ + PORT);
-console.log(‘📱 Access at: http://localhost:’ + PORT);
-console.log(‘🎬 Example: http://localhost:’ + PORT + ‘?id=tt0111161’);
+console.log('🚀 Stremio Lite running on port ' + PORT);
+console.log('📱 Access at: http://localhost:' + PORT);
+console.log('🎬 Example: http://localhost:' + PORT + '?id=tt0111161');
 });
