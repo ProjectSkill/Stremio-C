@@ -1,38 +1,11 @@
-name: Generate package-lock.json (Node 18, Docker-aligned)
-
-on:
-  workflow_dispatch:
-  push:
-    paths:
-      - "package.json"
-
-permissions:
-  contents: write
-
-jobs:
-  create-lockfile:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "18"
-      
-      # Generate fresh package-lock.json
-      - name: Generate package-lock.json
-        run: |
-          rm -f package-lock.json node_modules
-          npm install --package-lock-only --ignore-scripts
-      
-      # Verify it works with production install (optional)
-      - name: Verify production install
-        run: |
-          npm ci --production --ignore-scripts
-          rm -rf node_modules
-      
-      - uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "ci: generate package-lock.json [skip ci]"
-          file_pattern: "package-lock.json"
-          branch: ${{ github.ref }}
+services:
+  - type: web
+    name: lightweight-stremio
+    env: docker
+    plan: free
+    docker:
+      dockerfile: Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /manifest.json
