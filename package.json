@@ -1,7 +1,7 @@
 {
-  "name": "stremio-lite-single-file",
+  "name": "stremio-lite",
   "version": "1.0.0",
-  "description": "A single-file Stremio addon and UI.",
+  "description": "Lightweight Stremio addon",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
@@ -9,5 +9,8 @@
   "dependencies": {
     "express": "^4.18.2",
     "node-fetch": "^2.7.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   }
 }
