@@ -14,12 +14,23 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - uses: actions/setup-node@v4
         with:
           node-version: "18"
-          cache: "npm"
-      - run: npm install --no-audit
-      - run: npm ci --production --ignore-scripts
+      
+      # Generate fresh package-lock.json
+      - name: Generate package-lock.json
+        run: |
+          rm -f package-lock.json node_modules
+          npm install --package-lock-only --ignore-scripts
+      
+      # Verify it works with production install (optional)
+      - name: Verify production install
+        run: |
+          npm ci --production --ignore-scripts
+          rm -rf node_modules
+      
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: "ci: generate package-lock.json [skip ci]"
