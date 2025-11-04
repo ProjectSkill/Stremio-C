@@ -8,7 +8,6 @@ WORKDIR /app
 COPY package*.json ./
 COPY server.js ./
 COPY nginx.conf /etc/nginx/nginx.conf
-COPY players.html /usr/share/nginx/html/
 
 # Install dependencies
 RUN npm install
@@ -16,6 +15,6 @@ RUN npm install
 # Create nginx directories
 RUN mkdir -p /run/nginx
 
-EXPOSE 80 443 11470
+EXPOSE 80 11470
 
 CMD sh -c "nginx && node server.js"
