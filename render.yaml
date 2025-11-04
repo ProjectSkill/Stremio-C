@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: lightweight-stremio
+    env: docker
+    plan: free
+    docker:
+      dockerfile: Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /health
