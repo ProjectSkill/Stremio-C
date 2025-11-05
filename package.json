@@ -1,7 +1,7 @@
 {
-  "name": "player-redirect",
+  "name": "burger-menu-ultimate",
   "version": "1.0.0",
-  "description": "Player redirection for Stremio",
+  "description": "Lightweight Stremio backend with burger menu player selection",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
