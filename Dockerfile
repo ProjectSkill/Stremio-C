@@ -1,11 +1,10 @@
 FROM node:18-alpine
 
-RUN apk add --no-cache ffmpeg
-
 WORKDIR /app
 
 COPY package*.json ./
 COPY server.js ./
+COPY manifest.json ./
 
 RUN npm install
 
