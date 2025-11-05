@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: player-redirect
+    name: burger-menu-ultimate
     env: docker
     plan: free
     docker:
