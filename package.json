@@ -1,7 +1,7 @@
 {
-  "name": "working-stremio-backend",
+  "name": "genius-stremio-backend",
   "version": "1.0.0",
-  "description": "Real working Stremio backend with player options",
+  "description": "Working Stremio backend with real streams and instant player activation",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
