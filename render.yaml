@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: lightweight-stremio
+    name: genius-stremio
     env: docker
     plan: free
     docker:
