@@ -1,6 +1,11 @@
 services:
   - type: web
-    name: stremio-player
+    name: player-redirect
     env: docker
     plan: free
-    healthCheckPath: /
+    docker:
+      dockerfile: Dockerfile
+    envVars:
+      - key: NODE_ENV
+        value: production
+    healthCheckPath: /health
