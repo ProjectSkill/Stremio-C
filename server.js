@@ -3,7 +3,6 @@ const { addonBuilder, getRouter } = require('stremio-addon-sdk');
 
 const app = express();
 
-// Create Stremio addon
 const builder = new addonBuilder({
     id: 'org.burgermenu.ultimate',
     version: '1.0.0',
@@ -14,16 +13,14 @@ const builder = new addonBuilder({
     catalogs: []
 });
 
-// Stream handler - integrates with ANY content
 builder.defineStreamHandler((args) => {
-    const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 10000}`;
+    const baseUrl = process.env.RENDER_EXTERNAL_URL || 'http://localhost:' + (process.env.PORT || 10000);
     
-    // Return burger menu as primary stream option
     const streams = [
         {
             title: '🍔 Burger Menu - Player Selector',
             description: 'Open player selection menu',
-            url: `${baseUrl}/burger-menu?type=${args.type}&id=${encodeURIComponent(args.id)}&title=${encodeURIComponent(args.title || 'Content')}`
+            url: baseUrl + '/burger-menu?type=' + args.type + '&id=' + encodeURIComponent(args.id) + '&title=' + encodeURIComponent(args.title || 'Content')
         }
     ];
 
@@ -33,15 +30,13 @@ builder.defineStreamHandler((args) => {
 const addonInterface = builder.getInterface();
 app.use('/', getRouter(addonInterface));
 
-// Burger Menu Endpoint
 app.get('/burger-menu', (req, res) => {
     const videoType = req.query.type;
     const videoId = req.query.id;
     const videoTitle = req.query.title || 'Video';
-    const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 10000}`;
+    const baseUrl = process.env.RENDER_EXTERNAL_URL || 'http://localhost:' + (process.env.PORT || 10000);
     
-    res.send(`
-<!DOCTYPE html>
+    const html = `<!DOCTYPE html>
 <html>
 <head>
     <title>Burger Menu - ${videoTitle}</title>
@@ -188,22 +183,18 @@ app.get('/burger-menu', (req, res) => {
     </style>
 </head>
 <body>
-    <!-- Burger Icon -->
     <div class="burger-container">
         <div class="burger-icon" onclick="toggleMenu()">🍔</div>
     </div>
 
-    <!-- Backdrop -->
     <div class="backdrop" onclick="toggleMenu()"></div>
 
-    <!-- Menu Overlay -->
     <div class="menu-overlay" id="menuOverlay">
         <div class="menu-header">
             <h3>🎬 Player Menu</h3>
             <p>${videoTitle}</p>
         </div>
 
-        <!-- URL Fetcher -->
         <div class="url-fetcher">
             <button class="fetch-btn" onclick="fetchStreamUrls()">
                 🔍 Fetch Stream URLs
@@ -211,12 +202,9 @@ app.get('/burger-menu', (req, res) => {
             <div class="status info" id="fetchStatus">
                 Fetching available streams...
             </div>
-            <div class="url-list" id="urlList">
-                <!-- URLs will be populated here -->
-            </div>
+            <div class="url-list" id="urlList"></div>
         </div>
 
-        <!-- Player Selection -->
         <div class="player-section">
             <button class="player-btn" onclick="openPlayer('infuse')">
                 🎯 Infuse
@@ -262,14 +250,13 @@ app.get('/burger-menu', (req, res) => {
             status.style.display = 'block';
             status.textContent = '🔍 Fetching available streams...';
             
-            // Simulate fetching streams (in real implementation, this would call an API)
             setTimeout(() => {
                 urlList.innerHTML = '';
                 sampleStreams.forEach((url, index) => {
                     const urlItem = document.createElement('div');
                     urlItem.className = 'url-item';
-                    urlItem.textContent = `Stream ${index + 1}: ${url}`;
-                    urlItem.onclick = () => {
+                    urlItem.textContent = 'Stream ' + (index + 1) + ': ' + url;
+                    urlItem.onclick = function() {
                         currentStreamUrl = url;
                         copyToClipboard(url);
                         showStatus('copyStatus', '✅ URL copied to clipboard!');
@@ -278,9 +265,8 @@ app.get('/burger-menu', (req, res) => {
                 });
                 
                 urlList.style.display = 'block';
-                status.textContent = `✅ Found ${sampleStreams.length} streams`;
+                status.textContent = '✅ Found ' + sampleStreams.length + ' streams';
                 
-                // Auto-select first stream
                 if (sampleStreams.length > 0) {
                     currentStreamUrl = sampleStreams[0];
                 }
@@ -292,7 +278,6 @@ app.get('/burger-menu', (req, res) => {
                 console.log('URL copied to clipboard:', text);
             }).catch(err => {
                 console.error('Failed to copy:', err);
-                // Fallback for older browsers
                 const textArea = document.createElement('textarea');
                 textArea.value = text;
                 document.body.appendChild(textArea);
@@ -319,14 +304,11 @@ app.get('/burger-menu', (req, res) => {
 
             const redirectUrl = playerUrls[player] || currentStreamUrl;
             
-            // Auto-copy URL before redirect
             copyToClipboard(currentStreamUrl);
             
-            // Redirect to player
             window.location.href = redirectUrl;
             
-            // Fallback: if player not installed, open in browser after delay
-            setTimeout(() => {
+            setTimeout(function() {
                 if (document.hasFocus()) {
                     window.location.href = currentStreamUrl;
                 }
@@ -337,12 +319,11 @@ app.get('/burger-menu', (req, res) => {
             const element = document.getElementById(elementId);
             element.textContent = message;
             element.style.display = 'block';
-            setTimeout(() => {
+            setTimeout(function() {
                 element.style.display = 'none';
             }, 3000);
         }
 
-        // Auto-fetch streams when menu opens
         document.getElementById('menuOverlay').addEventListener('transitionend', function() {
             if (this.classList.contains('active') && !currentStreamUrl) {
                 fetchStreamUrls();
@@ -350,73 +331,10 @@ app.get('/burger-menu', (req, res) => {
         });
     </script>
 </body>
-</html>
-    `);
+</html>`;
+    
+    res.send(html);
 });
 
-// Root endpoint
 app.get('/', (req, res) => {
-    const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 10000}`;
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Burger Menu Ultimate - WORKING</title>
-            <style>
-                body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-                .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-                h1 { color: #2c3e50; }
-                .feature { background: #e8f4fd; padding: 15px; margin: 15px 0; border-radius: 5px; border-left: 4px solid #3498db; }
-                .url { background: #2c3e50; color: white; padding: 10px; border-radius: 5px; font-family: monospace; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>✅ Burger Menu Ultimate - PERFECTLY WORKING</h1>
-                <p><strong>Lightweight Stremio backend with burger menu player selection</strong></p>
-                
-                <div class="feature">
-                    <h3>🎯 EXACTLY WHAT YOU WANTED:</h3>
-                    <ol>
-                        <li><strong>Burger Menu Icon</strong> 🍔 - Small overlay in top-left corner</li>
-                        <li><strong>Auto-Fetch URLs</strong> - Automatically fetches available streams</li>
-                        <li><strong>Auto-Copy Function</strong> - Click any stream to auto-copy URL</li>
-                        <li><strong>One-Click Player Opening</strong> - Auto-pastes and opens in selected player</li>
-                        <li><strong>Works with ANY content</strong> - Movies, series, torrents, HTTP links</li>
-                    </ol>
-                </div>
-                
-                <div class="feature">
-                    <h3>🚀 HOW TO USE:</h3>
-                    <ol>
-                        <li><strong>Add to Stremio:</strong> <div class="url">${baseUrl}</div></li>
-                        <li><strong>Browse ANY content</strong> in Stremio</li>
-                        <li><strong>Click any movie/series</strong> → Choose "🍔 Burger Menu"</li>
-                        <li><strong>Click burger icon</strong> 🍔 (top-left) to open menu</li>
-                        <li><strong>Streams auto-fetch</strong> - Click any to auto-copy</li>
-                        <li><strong>Click player button</strong> - Auto-pastes & opens instantly</li>
-                    </ol>
-                </div>
-                
-                <p><a href="/manifest.json">View Manifest</a> | <a href="/health">Health Check</a></p>
-            </div>
-        </body>
-        </html>
-    `);
-});
-
-// Health check
-app.get('/health', (req, res) => {
-    res.json({ 
-        status: 'PERFECT', 
-        service: 'Burger Menu Ultimate',
-        features: ['Burger menu overlay', 'Auto-fetch URLs', 'Auto-copy', 'One-click player opening']
-    });
-});
-
-const PORT = process.env.PORT || 10000;
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`🎉 BURGER MENU ULTIMATE running on port ${PORT}`);
-    console.log(`✅ ALL FEATURES WORKING: Burger menu, auto-fetch, auto-copy, instant player opening`);
-    console.log(`📍 Add to Stremio: ${process.env.RENDER_EXTERNAL_URL || `http://localhost:${PORT}`}`);
-});
+    const baseUrl = process.env.RENDER_EXTERNAL_URL || 'http://localhost:' + (process.env.PORT || 10000);
