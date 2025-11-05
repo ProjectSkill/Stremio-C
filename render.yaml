@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: burger-menu-ultimate
+    name: expert-player-redirect
     env: docker
     plan: free
     docker:
