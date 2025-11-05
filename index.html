@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stremio Burger Menu</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Burger Menu Icon -->
+    <div class="burger-icon" id="burgerIcon">
+        <div class="bar1"></div>
+        <div class="bar2"></div>
+        <div class="bar3"></div>
+    </div>
+
+    <!-- Menu Overlay -->
+    <div class="menu-overlay" id="menuOverlay">
+        <div class="menu-content">
+            <div class="menu-header">
+                <h2>🎬 Player Selection</h2>
+                <button class="close-btn" id="closeBtn">×</button>
+            </div>
+            
+            <div class="url-section">
+                <button class="fetch-btn" id="fetchBtn">
+                    🔍 Fetch Stream URLs
+                </button>
+                <div class="url-list" id="urlList">
+                    <!-- URLs will be populated here -->
+                </div>
+            </div>
+
+            <div class="players-section">
+                <h3>Open With:</h3>
+                <button class="player-btn" data-player="infuse">
+                    🎯 Infuse
+                </button>
+                <button class="player-btn" data-player="nplayer">
+                    📱 nPlayer
+                </button>
+                <button class="player-btn" data-player="outplayer">
+                    🔴 OutPlayer
+                </button>
+                <button class="player-btn" data-player="vlc">
+                    ▶️ VLC
+                </button>
+                <button class="player-btn" data-player="browser">
+                    🌐 Browser
+                </button>
+            </div>
+
+            <div class="status" id="status"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
