@@ -1,15 +1,15 @@
-FROM node:18-alpine
+FROM nginx:alpine
 
-RUN apk add --no-cache nginx
+# Install dependencies if needed for Tsardis
+RUN apk add --no-cache curl
 
-WORKDIR /app
-
-COPY package*.json ./
-COPY server.js ./
+# Copy configurations
 COPY nginx.conf /etc/nginx/nginx.conf
+COPY html/ /usr/share/nginx/html/
 
-RUN npm install && mkdir -p /run/nginx
+# If you have Tsardis backend files
+# COPY tsardis/ /app/tsardis/
 
 EXPOSE 80
 
-CMD sh -c "nginx && node server.js"
+CMD ["nginx", "-g", "daemon off;"]
