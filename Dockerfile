@@ -4,7 +4,6 @@ WORKDIR /app
 
 COPY package*.json ./
 COPY server.js ./
-COPY manifest.json ./
 
 RUN npm install
 
