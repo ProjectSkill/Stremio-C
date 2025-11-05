@@ -1,7 +1,7 @@
 {
-  "name": "genius-stremio-backend",
+  "name": "ultimate-player-redirect",
   "version": "1.0.0",
-  "description": "Working Stremio backend with real streams and instant player activation",
+  "description": "Ultimate player redirection for Stremio - ALWAYS WORKS",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
