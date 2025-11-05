@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: genius-stremio
+    name: ultimate-player-redirect
     env: docker
     plan: free
     docker:
