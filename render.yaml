@@ -1,24 +1,7 @@
-version: '3.8'
-
 services:
-  stremio:
-    image: tsaridas/stremio-docker:latest
-    container_name: stremio-server
-    ports:
-      - "11470:11470"
-    volumes:
-      - ./stremio-data:/root/.stremio-server
-    restart: unless-stopped
-
-  nginx:
-    image: nginx:alpine
-    container_name: stremio-nginx
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - ./nginx.conf:/etc/nginx/nginx.conf
-      - ./burger-menu:/usr/share/nginx/html/burger-menu
-    depends_on:
-      - stremio
-    restart: unless-stopped
+  - type: web
+    name: stremio-burger-menu
+    env: docker
+    plan: free
+    docker:
+      dockerfile: Dockerfile
