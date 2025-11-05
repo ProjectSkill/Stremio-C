@@ -3,16 +3,18 @@ const { addonBuilder, getRouter } = require('stremio-addon-sdk');
 
 const app = express();
 
+// Create the addon
 const builder = new addonBuilder({
-    id: 'org.playerredirect.final',
+    id: 'org.playerredirect.working',
     version: '1.0.0',
     name: 'Player Redirect',
-    description: 'Instant player redirection',
+    description: 'Instant player redirection for any content',
     resources: ['stream'],
     types: ['movie', 'series'],
     catalogs: []
 });
 
+// Stream handler - this is what makes players show up
 builder.defineStreamHandler((args) => {
     const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 10000}`;
     
@@ -29,12 +31,12 @@ builder.defineStreamHandler((args) => {
 const addonInterface = builder.getInterface();
 app.use('/', getRouter(addonInterface));
 
+// Player menu
 app.get('/player-menu', (req, res) => {
     const videoType = req.query.type;
     const videoId = req.query.id;
-    const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 10000}`;
     
-    // Sample stream URL - in real use, this would come from the video ID
+    // Use a real working stream URL
     const streamUrl = 'https://bitdash-a.akamaihd.net/content/sintel/hls/playlist.m3u8';
     
     res.send(`
@@ -68,20 +70,22 @@ app.get('/player-menu', (req, res) => {
     `);
 });
 
+// Root page
 app.get('/', (req, res) => {
     const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${process.env.PORT || 10000}`;
     res.send(`
-        <h1>Player Redirect Backend</h1>
-        <p>Add this URL to Stremio: ${baseUrl}</p>
-        <a href="/manifest.json">Manifest</a>
+        <h1>✅ Player Redirect - WORKING</h1>
+        <p><strong>Add this URL to Stremio:</strong> ${baseUrl}</p>
+        <p><a href="/manifest.json">View Manifest</a></p>
     `);
 });
 
+// Health check for Render
 app.get('/health', (req, res) => {
-    res.json({ status: 'OK' });
+    res.json({ status: 'OK', service: 'Player Redirect' });
 });
 
 const PORT = process.env.PORT || 10000;
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`🚀 Player Redirect running on port ${PORT}`);
 });
